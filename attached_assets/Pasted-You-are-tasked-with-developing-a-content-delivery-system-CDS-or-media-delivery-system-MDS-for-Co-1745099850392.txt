@@ -1,0 +1,290 @@
+You are tasked with developing a content delivery system (CDS) or media delivery system (MDS) for CodeSquare.fun, an EdTech platform designed for an instructor to manage and prepare educational content (videos, images, PDFs, and potentially `.zip` files) for future use by 10-20 students in C++ courses, with planned expansion to full-stack and game development. The application must be built entirely from the ground up, without relying on any existing starter code, and must run flawlessly on a single local machine using Node.js 22. The system requires no authentication, as it will be used solely by the instructor, and should support multiple Google Drive service accounts for storage optimization. The application will provide a Google Drive-like user interface, using a Next.js frontend for interaction and a single Express.js backend for file uploads, HLS video conversion, playlist generation, and streaming. MongoDB Atlas will be used for cloud-hosted metadata storage, and Redis will handle local job queues. The focus is on local execution, with no external endpoints, tunnels, or Cloudflare components (e.g., no Cloudflare Worker). Below are the detailed requirements, architecture, features, and instructions for local development.
+
+**Project Requirements**:
+- **Objective**: Build a CDS/MDS for CodeSquare.fun to enable the instructor to upload, manage, and stream educational content (videos, images, PDFs, and potentially `.zip` files) in preparation for student access.
+- **Constraints**:
+  - Run entirely on a single local machine (macOS/Linux assumed, 4-core CPU, 8GB RAM, 100GB disk).
+  - Use Node.js 22 with the latest packages (e.g., `express@4.x`, `mongoose@8.x`, `bullmq@5.x`, `next@15.x`).
+  - No authentication; the application is for instructor-only use, with no role-based access control (RBAC).
+  - Support 5-10 Google Drive service accounts (75-150GB storage) for optimized storage.
+  - Use MongoDB Atlas for cloud-hosted metadata storage.
+  - Build all components (frontend, backend, database schemas) from scratch, without relying on any existing code.
+  - Exclude external endpoints, tunnels, or Cloudflare components.
+- **Assumptions**:
+  - Support `.zip` files for code (e.g., C++ projects, game assets).
+  - Use Material-UI (MUI) for a Google Drive-like UI.
+  - Local machine: macOS/Linux, 4-core CPU, 8GB RAM, 100GB free disk space.
+  - Developer works 20-30 hours per week, with Grok 3 assistance for code snippets, debugging, and optimization.
+
+**Architecture**:
+The application consists of two main components, both running locally:
+1. **Express.js Backend**:
+   - Runs on `http://localhost:5008`.
+   - Handles file uploads to Google Drive, HLS video conversion, `.m3u8` playlist generation, and `.ts` chunk streaming.
+   - Connects to MongoDB Atlas for metadata storage and local Redis for job queues.
+   - Manages 5-10 Google Drive service accounts, using public links for streaming.
+2. **Next.js Frontend**:
+   - Runs on `http://localhost:3000`.
+   - Provides a Google Drive-like UI for the instructor to upload files, list content, stream videos, monitor conversion jobs, and manage Google Drive account storage.
+   - Communicates with the Express backend (`http://localhost:5008`) for all functionality.
+
+**Features**:
+- **Core Features** (essential for instructor use):
+  1. **File Upload**:
+     - Drag-and-drop interface for uploading videos (`.mp4`, `.mkv`), images (`.jpg`, `.png`), PDFs (`.pdf`), and `.zip` files (code, e.g., C++ projects).
+     - Option to import existing Google Drive files by entering their file ID.
+     - Chunk uploads at 10MB (client-side using `File.slice` or server-side equivalent), with a maximum file size of 1GB.
+     - Allow selection of a category (video, image, document, code) and a virtual folder (e.g., “C++ Basics”) during upload.
+     - Store metadata in MongoDB Atlas (`uploads` collection with fields: `fileType`, `externalFileId`, `category`, `uploadName`, `folderId`, `folderName`).
+     - Display upload progress and success/error messages in the UI.
+  2. **File List**:
+     - Display a table of uploaded files using MUI DataGrid, showing columns: name, size, category (video, image, document, code), thumbnail, upload date, and status (e.g., “Processing”, “Ready”).
+     - Support filtering by category and folder, with sorting by name or date.
+     - Include action buttons for each file: Play (for videos), Download (for images, PDFs, `.zip`), and View Jobs (for conversion status).
+  3. **Video Streaming**:
+     - Embed an HLS.js player in a `/video/[id]` page, fetching `.m3u8` playlists from `http://localhost:5008/stream/playlist/:uploadId`.
+     - Stream `.ts` chunks from `http://localhost:5008/chunk/hls-stream?chunkId=<chunkId>`.
+     - Support multiple resolutions (1080p, 720p, 360p) with adaptive bitrate switching.
+     - Show loading states and error messages (e.g., “Video unavailable”) in the UI.
+  4. **HLS Conversion Jobs**:
+     - Allow the instructor to trigger HLS conversion jobs via the UI, selecting resolutions (1080p, 720p, 360p) for uploaded videos.
+     - Display job status (Waiting, Processing, Ready, Failed) in a `/jobs` page or as a column in the `FileList` using MUI LinearProgress.
+     - Provide detailed error messages for failed jobs (e.g., “Conversion failed: invalid video format”).
+  5. **Storage Management**:
+     - Create a `/debug/accounts` page with an MUI DataGrid displaying Google Drive account details: account ID, usage (bytes), limit (bytes), and percentage free for 5-10 accounts.
+     - Show alerts (e.g., MUI Alert component) for accounts with less than 10% free space to prompt the instructor to add new accounts.
+- **Enhanced Features** (to improve usability and mimic Google Drive):
+  6. **Folder-Like Organization**:
+     - Enable the instructor to assign files to virtual folders (e.g., “C++ Basics”, “Game Development”) during upload, storing `folderId` and `folderName` in the `uploads` collection.
+     - Provide a dropdown menu in the `FileList` to filter files by folder.
+  7. **File Previews**:
+     - Display thumbnails for videos and images, and first-page previews for PDFs in the `FileList`.
+     - Fetch previews via a dedicated API endpoint (`/api/preview/:uploadId`).
+     - Generate thumbnails using Sharp for images (200x200px) and FFmpeg for videos (single frame).
+     - Optionally generate PDF previews using a library like `pdf2pic` (include only if feasible within scope).
+  8. **Error Handling and Notifications**:
+     - Implement MUI Snackbar notifications for user-friendly feedback on actions, such as errors (e.g., “Invalid file ID”, “Upload failed: file too large”) and success messages (e.g., “File uploaded successfully”).
+     - Handle API errors (e.g., 404, 500) with clear, standardized responses.
+  9. **Responsive Design**:
+     - Use MUI’s responsive components (e.g., `Grid`, `DataGrid`) to ensure the UI functions seamlessly on both desktop and mobile devices.
+     - Optimize the `VideoPlayer` component for touch controls on mobile (e.g., play/pause, seek).
+
+**Folder Structure**:
+```plaintext
+/project
+├── /next-app                   # Next.js frontend
+│   ├── /.env.local             # Environment variables (API URL)
+│   ├── /public                 # Static assets (e.g., logo, favicon)
+│   ├── /src
+│   │   ├── /pages
+│   │   │   ├── /_app.tsx       # Custom App (MUI setup, global styles)
+│   │   │   ├── /index.tsx      # Home page (file upload and list)
+│   │   │   ├── /video/[id].tsx # Video player page
+│   │   │   ├── /jobs.tsx       # Job status page
+│   │   │   ├── /debug
+│   │   │   │   ├── /accounts.tsx # Account usage page
+│   │   ├── /components
+│   │   │   ├── /FileUploader.tsx # Drag-and-drop upload component
+│   │   │   ├── /FileList.tsx   # File list table component
+│   │   │   ├── /VideoPlayer.tsx # HLS video player component
+│   │   │   ├── /JobStatus.tsx  # Job progress component
+│   │   │   ├── /FolderSelector.tsx # Folder dropdown component
+│   │   │   ├── /Navbar.tsx     # Navigation bar component
+│   │   ├── /lib
+│   │   │   ├── /api.ts         # Axios client for Express API
+│   │   │   ├── /state.ts       # Zustand store for state management
+│   │   ├── /styles             # MUI theme and global CSS
+│   ├── /package.json           # Dependencies and scripts
+│   ├── /tsconfig.json          # TypeScript configuration
+├── /express-backend            # Local Express backend (all functionality)
+│   ├── /.env                   # Environment variables (MongoDB, Redis, Google Drive)
+│   ├── /src
+│   │   ├── /routes             # API routes
+│   │   │   ├── /upload.ts      # Upload endpoints
+│   │   │   ├── /jobs.ts        # HLS job endpoints
+│   │   │   ├── /stream.ts      # Playlist and chunk streaming endpoints
+│   │   ├── /models             # MongoDB schemas
+│   │   │   ├── /file.ts        # File schema
+│   │   │   ├── /chunk.ts       # Chunk schema
+│   │   │   ├── /upload.ts      # Upload schema
+│   │   │   ├── /conversion.ts  # Conversion schema
+│   │   │   ├── /account.ts     # Account schema
+│   │   ├── /services           # Business logic
+│   │   │   ├── /googleDrive.ts # Google Drive integration
+│   │   │   ├── /hlsConverter.ts # HLS conversion logic
+│   │   │   ├── /jobQueue.ts    # BullMQ job queue
+│   │   │   ├── /fileProcessor.ts # File processing (Sharp, FFmpeg)
+│   │   ├── /utils              # Utilities
+│   │   │   ├── /logger.ts      # Pino logging
+│   │   │   ├── /chunker.ts     # File chunking
+│   │   ├── /app.ts             # Express app entry point
+│   ├── /credentials            # Service account JSON files
+│   ├── /temp                   # Temporary files for HLS conversion
+│   ├── /temp/cache             # Buffered chunks for streaming
+│   ├── /package.json           # Dependencies and scripts
+│   ├── /tsconfig.json          # TypeScript configuration
+```
+
+**Technical Specifications**:
+- **Node.js**: v22.x.
+- **Packages** (latest versions):
+  - Next.js: `next@15.x`, `react@19.x`.
+  - Express: `express@4.x`.
+  - MongoDB: `mongoose@8.x`.
+  - Job Queue: `bullmq@5.x`, `ioredis@5.x`.
+  - Google Drive: `googleapis@144.x`.
+  - File Processing: `fluent-ffmpeg@2.x`, `sharp@0.33.x`, `pdf2pic@2.x` (optional for PDF previews).
+  - Frontend: `@mui/material@6.x`, `hls.js@1.x`, `axios@1.x`, `react-dropzone@14.x`, `zustand@4.x`.
+  - Utilities: `uuid@10.x`, `pino@9.x`, `undici@7.x`.
+  - Testing: `vitest@2.x`, `nock@13.x`.
+- **Local Dependencies**:
+  - Redis (v7.x, run with `redis-server`, default port 6379).
+  - FFmpeg (v7.x, install with `brew install ffmpeg` or equivalent for macOS/Linux).
+- **MongoDB Atlas**: Free-tier cluster (M0 or M2), database named `hls_test`.
+- **Google Drive**: 5-10 service accounts (JSON files placed in `/express-backend/credentials/service_accounts/`).
+
+**API Endpoints** (Express Backend, `http://localhost:5008`):
+- `POST /api/upload`: Upload files (videos, images, PDFs, `.zip`), chunked at 10MB, max size 1GB. Accepts multipart form data with file, `category`, and `folderId`.
+- `GET /api/upload/googledrive`: Import a Google Drive file by ID (query parameters: `fileId`, `uploadName`, `fileType`, `category`, `folderId`).
+- `GET /api/uploads`: List all uploads, with optional filtering by `category` (video, image, document, code) and `folderId`.
+- `POST /api/job/hls/create`: Create an HLS conversion job (request body: `fileId`, `resolution` [1080p, 720p, 360p], `fileName`).
+- `GET /api/job/hls/get`: Retrieve job status (query: `jobId`).
+- `GET /api/job/hls/getConversionJobs`: List conversion jobs for a file or upload (query: `fileId` or `uploadId`).
+- `GET /api/stream/playlist/:uploadId`: Generate an `.m3u8` playlist for streaming a video by `uploadId`.
+- `GET /api/chunk/hls-stream`: Stream `.ts` chunks for HLS playback (query: `chunkId`).
+- `GET /api/accounts/usage`: Return storage usage for Google Drive accounts (response: `{ accounts: [{ id, usage, limit, percentFree }] }`).
+- `GET /api/preview/:uploadId`: Fetch a thumbnail (for videos/images) or PDF preview (returns Google Drive file ID or image data).
+
+**MongoDB Atlas Schemas**:
+- **Collections**: `files`, `chunks`, `uploads`, `conversions`, `accounts`.
+- **Uploads Collection**:
+  - Fields:
+    - `identifier`: String (unique, optional, for deduplication).
+    - `fileType`: String (e.g., `video/mp4`, `image/jpeg`).
+    - `externalFileId`: String (Google Drive file ID).
+    - `source`: String (e.g., “googledrive”).
+    - `fileId`: ObjectId (reference to `files` collection).
+    - `fileSize`: Number (bytes).
+    - `uploadName`: String (file name, default: “Unnamed”).
+    - `category`: Enum (`video`, `image`, `document`, `code`).
+    - `thumbnail`: String (Google Drive file ID for video/image thumbnails).
+    - `folderId`: String (virtual folder identifier).
+    - `folderName`: String (e.g., “C++ Basics”).
+    - `aux`: Mixed (additional metadata).
+  - Indexes: `identifier`, `fileId`, `folderId`.
+- **Accounts Collection**:
+  - Fields:
+    - `accountId`: String (unique, e.g., `client_email` from service account JSON).
+    - `usage`: Number (bytes used).
+    - `limit`: Number (bytes available, typically 15GB).
+    - `lastUpdated`: Date (timestamp of last usage update).
+  - Index: `accountId`.
+- **Files Collection**:
+  - Fields:
+    - `fileType`: String (e.g., `hls`, `mp4`).
+    - `chunks`: Array of ObjectId (references to `chunks`).
+    - `status`: Number (e.g., processing state).
+    - `aux`: Mixed (e.g., `m3u8Header`, `videoBitrate`).
+    - `storageType`: Number (0 for original, 1 for converted, 2 for imported).
+  - Index: `_id`.
+- **Chunks Collection**:
+  - Fields:
+    - `fileType`: String (e.g., `hls-chunk`).
+    - `replicas`: Array of String (Google Drive file IDs).
+    - `aux`: Mixed (e.g., `extinf` for HLS chunks).
+  - Index: `_id`.
+- **Conversions Collection**:
+  - Fields:
+    - `originalFile`: ObjectId (reference to `files`).
+    - `convertedFile`: ObjectId (reference to `files`, nullable).
+    - `identifier`: String (unique job identifier).
+    - `status`: Number (Waiting, Processing, Ready, Failed).
+    - `messages`: Array of String (job logs).
+    - `conversionType`: String (default: `hls`).
+    - `aux`: Mixed (e.g., `inputOptions`, `outputOptions`).
+  - Index: `originalFile`.
+
+**Development Guidelines**:
+- Use TypeScript for all code (Next.js components, Express routes, MongoDB schemas) to ensure type safety and maintainability.
+- Implement a clean, blue/white Google Drive-like theme using MUI, with a focus on simplicity and usability, unless Tailwind CSS is explicitly requested (consult Grok 3 if unclear).
+- Ensure the UI is responsive, using MUI’s responsive components (e.g., `Grid`, `DataGrid`) to support both desktop and mobile devices, with touch-friendly controls for the video player.
+- Use Pino for structured logging in both Express and Next.js, outputting logs to the console for local debugging.
+- Write unit tests with Vitest for critical components (e.g., `FileUploader.tsx`, `/api/upload`, `/api/stream/playlist`) and integration tests for the full workflow (upload → conversion → streaming), targeting at least 80% code coverage for critical paths.
+- Optimize performance:
+  - Cache `.m3u8` playlists in Express memory with a TTL of 24 hours to reduce MongoDB queries.
+  - Cache `.ts` chunks in `/temp/cache` with a TTL of 7 days to minimize Google Drive API calls.
+  - Configure FFmpeg with the `-preset ultrafast` option to speed up HLS conversions.
+  - Create MongoDB indexes on frequently queried fields (`identifier`, `fileId`, `folderId`, `accountId`) for efficient queries.
+- Develop Google Drive integration:
+  - Support 5-10 service accounts, loading JSON files from `/express-backend/credentials/service_accounts/` at startup.
+  - Optimize storage by selecting accounts with >50% free space, using a weighted algorithm to balance usage (e.g., prioritize accounts with higher free space, avoid those with <10% free).
+  - Store account usage data in the `accounts` collection in MongoDB Atlas, updating usage after each upload.
+  - Handle Google Drive API rate limits (1000 requests/100 seconds per account) with exponential backoff retries (implement a retry mechanism similar to `async-retry`).
+  - Set uploaded files to public read access (using Google Drive API’s permissions endpoint) to enable streaming via public links.
+  - Monitor the `/credentials/service_accounts/` directory for new or updated JSON files, dynamically reloading service accounts without restarting the server.
+- Implement file processing:
+  - Use Sharp to resize images to 200x200px for thumbnails (videos and images).
+  - Use FFmpeg to generate HLS video segments (`.ts` files) and `.m3u8` playlists, as well as video thumbnails (single frame extraction).
+  - Optionally use `pdf2pic` to generate first-page previews for PDFs (include only if feasible within scope; consult Grok 3 if unclear).
+  - Validate `.zip` files for size (<1GB) and store without processing.
+- Implement HLS conversion:
+  - Use BullMQ with Redis to queue and process HLS conversion jobs, supporting multiple resolutions (1080p, 720p, 360p).
+  - Store job metadata in the `conversions` collection, with status updates (Waiting, Processing, Ready, Failed).
+  - Generate `.m3u8` playlists and `.ts` chunks, uploading chunks to Google Drive and storing metadata in MongoDB Atlas.
+- Ensure robust error handling:
+  - In the UI, display user-friendly errors and success messages using MUI Snackbar (e.g., “Invalid file ID”, “File uploaded successfully”).
+  - In the API, return standardized JSON responses: `{ status: 1, data: {...} }` for success, `{ status: 0, error: "message" }` for errors.
+- Thoroughly test the application:
+  - Unit tests (Vitest) for components (e.g., `FileUploader.tsx`, `VideoPlayer.tsx`), routes (e.g., `/api/upload`, `/api/stream/playlist`), and services (e.g., Google Drive integration, HLS conversion).
+  - Integration tests to verify the end-to-end flow: uploading a video, converting it to HLS, and streaming it via the UI.
+  - Manual tests to confirm UI functionality (e.g., drag-and-drop uploads, video playback, folder filtering) and error handling (e.g., invalid file uploads).
+  - Ensure all tests pass and achieve at least 80% coverage for critical code paths.
+- Provide documentation in the project’s `README.md`, including:
+  - Setup instructions (installing Node.js, Redis, FFmpeg, MongoDB Atlas, service accounts).
+  - Instructions for running the application locally (starting Redis, Express, Next.js).
+  - Testing instructions (running unit and integration tests, manual testing steps).
+  - Troubleshooting tips for common issues (e.g., MongoDB connection errors, Google Drive API rate limits, FFmpeg configuration).
+
+**Deliverables**:
+- A fully functional local application implementing all Core and Enhanced Features, built from scratch.
+- A Next.js frontend with a MUI-based, Google Drive-like UI, responsive for desktop and mobile devices.
+- An Express.js backend handling file uploads, HLS conversion, playlist generation, and streaming, with TypeScript and Pino logging.
+- A MongoDB Atlas database with populated schemas (`files`, `chunks`, `uploads`, `conversions`, `accounts`).
+- Unit tests (Vitest) covering critical components and integration tests for the full workflow (upload → conversion → streaming).
+- Documentation (`README.md`) detailing setup, running, testing, and troubleshooting for local execution.
+
+**Success Criteria**:
+- The instructor can upload videos (`.mp4`, `.mkv`), images (`.jpg`, `.png`), PDFs (`.pdf`), and `.zip` files (code) via the UI, both directly and by providing Google Drive file IDs, with progress indicators and appropriate error messages displayed via MUI Snackbar.
+- The file list displays all uploaded files with metadata (name, size, category, thumbnail, upload date, status), supports filtering by category and folder, and allows sorting by name or date.
+- The instructor can stream videos seamlessly using the HLS.js player, with support for 1080p, 720p, and 360p resolutions and adaptive bitrate switching, with loading states and error messages displayed in the UI.
+- The instructor can trigger HLS conversion jobs and monitor their status (Waiting, Processing, Ready, Failed) in the UI, with clear error messages for failed jobs.
+- The instructor can view Google Drive account usage for 5-10 accounts, with alerts displayed for accounts with less than 10% free space.
+- Thumbnails are displayed for videos and images, and first-page previews are shown for PDFs in the file list.
+- The UI is responsive, functioning correctly on both desktop and mobile devices, with a clean, Google Drive-like design.
+- All API calls return standardized responses, and UI errors are handled with user-friendly notifications via MUI Snackbar.
+- The application runs without errors on a local machine, with all unit and integration tests passing successfully.
+- The application maintains at least 100GB of free disk space for `/temp` (HLS conversion files) and `/temp/cache` (buffered chunks) to avoid storage issues.
+
+**Timeline**:
+- The estimated development time is 9-13 weeks, assuming 20-30 hours per week of development effort, or 6-8 weeks with 40 hours per week.
+- Grok 3’s assistance (providing code snippets, debugging, and optimization) is expected to reduce development time by approximately 30-40%, ensuring efficient progress.
+
+**Clarifications** (to be resolved by the developer or Grok 3):
+- **Content Types**: Include support for `.zip` files for code (e.g., C++ projects, game assets) unless otherwise specified. If additional file types (e.g., `.txt`, `.fbx`) are required, make a reasonable decision or consult Grok 3.
+- **UI Styling**: Use Material-UI (MUI) with a clean, blue/white Google Drive-like theme unless Tailwind CSS is explicitly requested. If unclear, default to MUI and consult Grok 3.
+- **Local Machine Specs**: Assume macOS or Linux with a 4-core CPU, 8GB RAM, and 100GB free disk space. If different specs are provided, adapt the setup accordingly or consult Grok 3.
+- **Work Schedule**: Assume 20-30 hours per week of development effort. If a different schedule is specified (e.g., full-time), adjust the timeline and consult Grok 3.
+- **Additional Requirements**: Assume no integration with existing CodeSquare.fun features (e.g., learning management system, coding challenges) or custom branding (e.g., logo, colors) unless specified. If additional requirements arise, consult me.
+
+**Notes**:
+- The application must be developed from the ground up, without relying on any existing code, ensuring all components (Next.js frontend, Express backend, MongoDB schemas) are newly created.
+- The application is designed for instructor-only use, with no role-based access control (RBAC) or student-facing features at this stage, though it should be extensible for future student access.
+- Grok 3 is available to provide specific code snippets (e.g., `FileUploader.tsx` component, `/api/upload` route handler, Mongoose schemas), debug issues (e.g., MongoDB connection failures, FFmpeg errors), and optimize performance (e.g., FFmpeg presets, MongoDB indexes).
+- Ensure the application is thoroughly tested before completion:
+  - Unit tests should achieve at least 80% coverage for critical code paths (e.g., upload handling, playlist generation, streaming).
+  - Integration tests must verify the end-to-end flow: uploading a video, converting it to HLS, and streaming it via the UI.
+  - Manual tests should confirm UI functionality (e.g., drag-and-drop uploads, video playback, folder filtering) and error handling (e.g., invalid file uploads).
+- The application should reserve at least 100GB of disk space for `/temp` (HLS conversion files) and `/temp/cache` (buffered chunks) to avoid storage issues during development and testing.
+- If any clarifications or issues arise during development, consult Grok 3, providing specific details about the problem or requirement.
+
+
