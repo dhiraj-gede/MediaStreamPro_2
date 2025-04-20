@@ -183,6 +183,19 @@ export class MemStorage implements IStorage {
     return uploads;
   }
   
+  async updateUpload(id: number, update: Partial<Upload>): Promise<Upload> {
+    const upload = this.uploads.get(id);
+    if (!upload) throw new Error(`Upload with ID ${id} not found`);
+    
+    const updatedUpload = { 
+      ...upload, 
+      ...update,
+      updatedAt: new Date() 
+    };
+    this.uploads.set(id, updatedUpload);
+    return updatedUpload;
+  }
+  
   async updateUploadStatus(id: number, status: FileStatus): Promise<Upload> {
     const upload = this.uploads.get(id);
     if (!upload) throw new Error(`Upload with ID ${id} not found`);
@@ -337,6 +350,29 @@ export class MemStorage implements IStorage {
   
   async getAccounts(): Promise<Account[]> {
     return Array.from(this.accounts.values());
+  }
+  
+  async getAccountByEmail(email: string): Promise<Account | undefined> {
+    return Array.from(this.accounts.values()).find(
+      (account) => account.email === email
+    );
+  }
+  
+  async updateAccount(id: number, update: Partial<Account>): Promise<Account> {
+    const account = this.accounts.get(id);
+    if (!account) throw new Error(`Account with ID ${id} not found`);
+    
+    const updatedAccount = { 
+      ...account, 
+      ...update,
+      updatedAt: new Date() 
+    };
+    this.accounts.set(id, updatedAccount);
+    return updatedAccount;
+  }
+  
+  async deleteAccount(id: number): Promise<boolean> {
+    return this.accounts.delete(id);
   }
   
   async updateAccountUsage(id: number, storageUsed: number): Promise<Account> {
