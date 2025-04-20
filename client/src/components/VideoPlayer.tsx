@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '@/lib/constants';
 
 interface VideoPlayerProps {
   uploadId: string;
@@ -22,7 +23,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ uploadId, title }) => 
       setError(null);
       
       const videoElement = videoRef.current;
-      const playlistUrl = `http://localhost:5000/api/stream/playlist/${uploadId}`;
+      const playlistUrl = `${API_BASE_URL}/stream/playlist/${uploadId}`;
       
       // Check if HLS is supported in the browser
       if (Hls.isSupported()) {

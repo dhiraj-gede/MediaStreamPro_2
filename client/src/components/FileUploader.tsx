@@ -9,7 +9,7 @@ import { X, UploadCloud } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { CHUNK_SIZE } from '@/lib/constants';
+import { CHUNK_SIZE, API_BASE_URL } from '@/lib/constants';
 
 interface FileUploaderProps {
   isOpen: boolean;
@@ -110,10 +110,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ isOpen, onClose }) =
         chunkForm.append('uploadId', uploadId);
         chunkForm.append('chunkIndex', i.toString());
         
-        await fetch('/api/upload/chunk', {
+        const response = await fetch(`${API_BASE_URL}/upload/chunk`, {
           method: 'POST',
           body: chunkForm,
         });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to upload chunk ${i}: ${response.statusText}`);
+        }
         
         // Update progress
         const progress = Math.round(((i + 1) / totalChunks) * 100);
@@ -160,7 +164,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ isOpen, onClose }) =
       toast({
         title: 'Files uploaded successfully',
         description: 'Your files have been uploaded and are being processed.',
-        variant: 'success'
+        variant: 'default'
       });
       
       // Close the dialog after 1 second to show the success state
