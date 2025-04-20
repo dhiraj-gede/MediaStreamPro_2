@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
