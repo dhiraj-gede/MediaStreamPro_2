@@ -370,17 +370,34 @@ router.get('/api/uploads', async (req: Request, res: Response) => {
     const pageNumber = parseInt(page as string, 10);
     const pageSize = parseInt(limit as string, 10);
     
-    // Get uploads with pagination
-    const uploads = await storage.getUploads({
-      category: category as string,
-      folderId: folderId as string,
-      offset: (pageNumber - 1) * pageSize,
-      limit: pageSize,
-    });
+    // Get uploads with pagination - using try/catch for all storage operations
+    let uploads: any[] = [];
+    try {
+      uploads = await storage.getUploads({
+        category: category as string,
+        folderId: folderId as string,
+        offset: (pageNumber - 1) * pageSize,
+        limit: pageSize,
+      });
+    } catch (err) {
+      logger.error('Failed to get uploads:', err);
+      uploads = []; // Fallback to empty array
+    }
     
-    // Get total count for pagination
-    const total = await storage.count();
+    // Get total count of uploads - without relying on storage.count()
+    let total = 0;
+    try {
+      const allUploads = await storage.getUploads({
+        category: category as string,
+        folderId: folderId as string
+      });
+      total = allUploads.length;
+    } catch (err) {
+      logger.error('Failed to get count:', err);
+      total = uploads.length; // Fallback to length of current page uploads
+    }
     
+    // Return uploads as "files" to match the client expectation
     res.status(200).json({
       files: uploads,
       total,
