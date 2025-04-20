@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Plus, AlertTriangle } from 'lucide-react';
+import { AddServiceAccountDialog } from '@/components/AddServiceAccountDialog';
 
 interface AccountData {
   id: number;
@@ -26,6 +27,8 @@ interface AccountData {
 }
 
 export default function Storage() {
+  const [isAddAccountDialogOpen, setIsAddAccountDialogOpen] = useState(false);
+  
   // Fetch accounts
   const { data: accounts = [], isLoading, error } = useQuery<AccountData[]>({
     queryKey: ['/api/accounts/usage'],
@@ -115,7 +118,7 @@ export default function Storage() {
 
       {/* Low Space Warning */}
       {lowSpaceAccounts.length > 0 && (
-        <Alert variant="warning">
+        <Alert className="bg-yellow-50 border-yellow-200 text-yellow-800">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Low Storage Space</AlertTitle>
           <AlertDescription>
@@ -170,7 +173,6 @@ export default function Storage() {
                         <Progress 
                           value={usagePercentage} 
                           className={`h-1.5 mt-1 ${isLowSpace ? 'bg-yellow-200' : ''}`}
-                          indicatorColor={isLowSpace ? 'bg-yellow-500' : undefined}
                         />
                       </div>
                     </TableCell>
