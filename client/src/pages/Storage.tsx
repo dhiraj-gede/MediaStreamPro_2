@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Plus, AlertTriangle } from 'lucide-react';
 import { AddServiceAccountDialog } from '@/components/AddServiceAccountDialog';
+import { NoAccountsNotice } from '@/components/NoAccountsNotice';
 
 interface AccountData {
   id: number;
@@ -74,11 +75,21 @@ export default function Storage() {
       {/* Storage Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-medium">Storage Management</h1>
-        <Button className="mt-4 md:mt-0">
+        <Button 
+          className="mt-4 md:mt-0" 
+          onClick={() => setIsAddAccountDialogOpen(true)}
+        >
           <Plus className="mr-2 h-4 w-4" /> Add Service Account
         </Button>
       </div>
 
+      {/* No Accounts Notice */}
+      {accounts.length === 0 && (
+        <NoAccountsNotice onAddAccount={() => setIsAddAccountDialogOpen(true)} />
+      )}
+
+      {accounts.length > 0 && (
+        <>
       {/* Overall Usage Card */}
       <Card>
         <CardHeader>
@@ -185,6 +196,14 @@ export default function Storage() {
           </Table>
         </CardContent>
       </Card>
+        </>
+      )}
+      
+      {/* Add Service Account Dialog */}
+      <AddServiceAccountDialog
+        isOpen={isAddAccountDialogOpen}
+        onClose={() => setIsAddAccountDialogOpen(false)}
+      />
     </div>
   );
 }
