@@ -138,8 +138,19 @@ export class MemStorage implements IStorage {
     const id = this.uploadIdCounter++;
     const now = new Date();
     const upload: Upload = { 
-      ...insertUpload, 
-      id, 
+      id,
+      fileType: insertUpload.fileType,
+      externalFileId: insertUpload.externalFileId,
+      source: insertUpload.source,
+      fileId: insertUpload.fileId,
+      fileSize: insertUpload.fileSize,
+      uploadName: insertUpload.uploadName ?? "Unnamed",
+      category: insertUpload.category,
+      status: insertUpload.status ?? 'processing',
+      identifier: insertUpload.identifier ?? null,
+      folderName: insertUpload.folderName ?? null,
+      thumbnail: insertUpload.thumbnail ?? null,
+      folderId: insertUpload.folderId ?? null,
       createdAt: now, 
       updatedAt: now 
     };
@@ -256,9 +267,14 @@ export class MemStorage implements IStorage {
     const id = this.conversionIdCounter++;
     const now = new Date();
     const conversion: Conversion = { 
-      ...insertConversion, 
-      id, 
+      id,
+      uploadId: insertConversion.uploadId,
+      resolution: insertConversion.resolution,
+      status: insertConversion.status ?? 'waiting',
       progress: 0,
+      startedAt: null,
+      completedAt: null,
+      error: null,
       createdAt: now, 
       updatedAt: now 
     };
@@ -273,6 +289,23 @@ export class MemStorage implements IStorage {
   async getConversionsByUploadId(uploadId: number): Promise<Conversion[]> {
     return Array.from(this.conversions.values())
       .filter(conversion => conversion.uploadId === uploadId);
+  }
+  
+  async getConversionsByStatus(status: JobStatus): Promise<Conversion[]> {
+    return Array.from(this.conversions.values())
+      .filter(conversion => conversion.status === status);
+  }
+  
+  async getActiveConversions(): Promise<Conversion[]> {
+    return Array.from(this.conversions.values())
+      .filter(conversion => 
+        conversion.status === 'waiting' || 
+        conversion.status === 'processing'
+      );
+  }
+  
+  async getAllConversions(): Promise<Conversion[]> {
+    return Array.from(this.conversions.values());
   }
   
   async updateConversionStatus(id: number, status: JobStatus, progress?: number): Promise<Conversion> {
@@ -337,6 +370,7 @@ export class MemStorage implements IStorage {
       ...insertAccount, 
       id, 
       storageUsed: 0,
+      isActive: insertAccount.isActive !== undefined ? insertAccount.isActive : true,
       createdAt: now, 
       updatedAt: now 
     };
