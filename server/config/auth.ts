@@ -1,23 +1,27 @@
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
-import { logger } from '../utils/logger';
+import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/mongoose/user';
+import { logger } from '../utils/logger';
 
-// GitHub OAuth configurations
-// These values should be set as environment variables
-const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
-const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
-const CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:5000/auth/github/callback';
+// GitHub OAuth credentials
+const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
+const CALLBACK_URL = process.env.NODE_ENV === 'production'
+  ? 'https://your-production-domain.com/auth/github/callback' // Update with actual production URL
+  : 'http://localhost:5000/auth/github/callback';
 
-// Initialize passport with GitHub OAuth strategy
+/**
+ * Configure Passport for authentication
+ */
 export function configurePassport(): void {
-  // Serialize user ID to the session
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
+  // Serialize user to session
+  passport.serializeUser((user, done) => {
+    done(null, (user as any)._id);
   });
 
-  // Deserialize user from the session
-  passport.deserializeUser(async (id: string, done) => {
+  // Deserialize user from session
+  passport.deserializeUser(async (id, done) => {
     try {
       const user = await User.findById(id);
       done(null, user);
@@ -26,74 +30,66 @@ export function configurePassport(): void {
     }
   });
 
-  // Set up GitHub strategy
-  passport.use(
-    new GitHubStrategy(
-      {
-        clientID: GITHUB_CLIENT_ID,
-        clientSecret: GITHUB_CLIENT_SECRET,
-        callbackURL: CALLBACK_URL,
-        scope: ['user:email'],
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          // Check if user already exists
-          let user = await User.findOne({ githubId: profile.id });
+  // Configure GitHub strategy
+  if (GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET) {
+    passport.use(new GitHubStrategy({
+      clientID: GITHUB_CLIENT_ID,
+      clientSecret: GITHUB_CLIENT_SECRET,
+      callbackURL: CALLBACK_URL,
+      scope: ['user:email']
+    },
+    async function(accessToken: string, refreshToken: string, profile: any, done: any) {
+      try {
+        // Check if user exists in database
+        let user = await User.findOne({ githubId: profile.id });
 
-          if (!user) {
-            // Create new user if not found
-            user = await User.create({
-              githubId: profile.id,
-              username: profile.username,
-              displayName: profile.displayName || profile.username,
-              email: profile.emails?.[0]?.value || '',
-              avatar: profile.photos?.[0]?.value || '',
-              accessToken,
-              refreshToken,
-            });
-            logger.info(`Created new user: ${user.username}`);
-          } else {
-            // Update existing user with latest info
-            user.username = profile.username || user.username;
-            user.displayName = profile.displayName || profile.username || user.displayName;
-            user.email = profile.emails?.[0]?.value || user.email;
-            user.avatar = profile.photos?.[0]?.value || user.avatar;
-            user.accessToken = accessToken;
-            
-            if (refreshToken) {
-              user.refreshToken = refreshToken;
-            }
-            
-            await user.save();
-            logger.info(`Updated existing user: ${user.username}`);
-          }
-
-          return done(null, user);
-        } catch (error) {
-          logger.error('GitHub authentication error:', error);
-          return done(error as Error, null);
+        if (!user) {
+          // Create new user if not found
+          user = await User.create({
+            username: profile.username || `user-${profile.id}`,
+            displayName: profile.displayName || profile.username || `User ${profile.id}`,
+            email: profile.emails && profile.emails[0] ? profile.emails[0].value : `user-${profile.id}@example.com`,
+            avatar: profile.photos && profile.photos[0] ? profile.photos[0].value : undefined,
+            githubId: profile.id,
+            isAdmin: false,
+            lastLogin: new Date(),
+          });
+          logger.info(`Created new user with GitHub ID: ${profile.id}`);
+        } else {
+          // Update existing user
+          user.lastLogin = new Date();
+          await user.save();
+          logger.info(`User with GitHub ID ${profile.id} logged in`);
         }
-      }
-    )
-  );
 
-  logger.info('Passport configured with GitHub strategy');
+        return done(null, user);
+      } catch (error) {
+        logger.error('GitHub authentication error:', error);
+        return done(error as Error);
+      }
+    }));
+    logger.info('Passport configured with GitHub strategy');
+  } else {
+    logger.warn('GitHub OAuth credentials missing. GitHub authentication will not be available');
+  }
 }
 
-// Middleware to check if user is authenticated
-export function isAuthenticated(req: any, res: any, next: any): void {
+/**
+ * Middleware to check if user is authenticated
+ */
+export function isAuthenticated(req: Request, res: Response, next: NextFunction): void {
   if (req.isAuthenticated()) {
     return next();
   }
-  
-  res.status(401).json({ error: 'Unauthorized. Please log in.' });
+  res.status(401).json({ error: 'Authentication required' });
 }
 
-// Middleware to check if user is an admin
-export function isAdmin(req: any, res: any, next: any): void {
-  if (req.isAuthenticated() && req.user.isAdmin) {
+/**
+ * Middleware to check if user is admin
+ */
+export function isAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (req.isAuthenticated() && (req.user as any).isAdmin) {
     return next();
   }
-  
-  res.status(403).json({ error: 'Forbidden. Admin access required.' });
+  res.status(403).json({ error: 'Admin privileges required' });
 }

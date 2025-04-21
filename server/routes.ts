@@ -64,7 +64,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'pong' });
   });
 
-  // Register route modules
+  // Register auth routes first
+  registerAuthRoutes(app);
+  
+  // Register service account routes
+  registerServiceAccountRoutes(app);
+  
+  // Register other API routes
   registerUploadRoutes(app);
   registerJobRoutes(app);
   registerStreamRoutes(app);

@@ -22,23 +22,31 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Session configuration
-app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: MONGODB_URI,
-      collectionName: 'sessions',
-      ttl: 14 * 24 * 60 * 60, // 14 days in seconds
-    }),
-    cookie: {
-      maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-    },
-  })
-);
+let sessionConfig: any = {
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+  }
+};
+
+// Only use MongoStore if we have a real MongoDB URI
+// Otherwise, sessions will be stored in memory (not persisted between restarts)
+if (process.env.MONGODB_URI) {
+  logger.info('Using MongoDB session store');
+  sessionConfig.store = MongoStore.create({
+    mongoUrl: MONGODB_URI,
+    collectionName: 'sessions',
+    ttl: 14 * 24 * 60 * 60, // 14 days in seconds
+  });
+} else {
+  logger.info('Using in-memory session store');
+}
+
+app.use(session(sessionConfig));
 
 // Initialize Passport
 app.use(passport.initialize());
