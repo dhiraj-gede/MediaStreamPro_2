@@ -7,7 +7,9 @@ import { logger } from '../utils/logger';
 import config from 'server/config';
 
 // Configure Redis connection
-const redisConnection = new Redis(config.redis.url || 'redis://0.0.0.0:6379');
+const redisConnection = new Redis(config.redis.url || 'redis://127.0.0.1:6379', {
+  maxRetriesPerRequest: null,
+});
 
 // Job types
 export enum JobType {
@@ -138,7 +140,7 @@ class JobQueueService {
     );
 
     logger.info(`Added HLS conversion job: ${job.id}, uploadId=${uploadId}, resolution=${resolution}`);
-    return job.id;
+    return job.id ?? '';
   }
 
   async addThumbnailJob(uploadId: number, externalFileId: string): Promise<string> {
@@ -154,7 +156,7 @@ class JobQueueService {
     );
 
     logger.info(`Added thumbnail generation job: ${job.id}, uploadId=${uploadId}`);
-    return job.id;
+    return job.id ?? '';
   }
 
   async addPreviewJob(uploadId: number, externalFileId: string, fileType: string): Promise<string> {
@@ -171,7 +173,7 @@ class JobQueueService {
     );
 
     logger.info(`Added preview generation job: ${job.id}, uploadId=${uploadId}, fileType=${fileType}`);
-    return job.id;
+    return job.id ?? '';
   }
 
   async getJob(jobId: string): Promise<Job | null> {

@@ -11,6 +11,7 @@ const MONGODB_URI = config.db.uri || 'mongodb://localhost:27017/content-delivery
 export async function connectToDatabase(): Promise<void> {
   try {
     const options = {
+      dbName: 'new_hls',
       autoIndex: true,
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
