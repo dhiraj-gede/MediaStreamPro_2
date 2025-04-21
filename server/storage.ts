@@ -12,11 +12,11 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // File operations
   createFile(file: InsertFile): Promise<File>;
   getFile(id: number): Promise<File | undefined>;
-  
+
   // Upload operations
   createUpload(upload: InsertUpload): Promise<Upload>;
   getUpload(id: number): Promise<Upload | undefined>;
@@ -29,12 +29,12 @@ export interface IStorage {
   }): Promise<Upload[]>;
   updateUploadStatus(id: number, status: FileStatus): Promise<Upload>;
   updateUploadThumbnail(id: number, thumbnailId: string): Promise<Upload>;
-  
+
   // Chunk operations
   createChunk(chunk: InsertChunk): Promise<Chunk>;
   getChunksByUploadId(uploadId: number, resolution?: string): Promise<Chunk[]>;
   getChunk(id: number): Promise<Chunk | undefined>;
-  
+
   // Conversion operations
   createConversion(conversion: InsertConversion): Promise<Conversion>;
   getConversion(id: number): Promise<Conversion | undefined>;
@@ -42,13 +42,13 @@ export interface IStorage {
   updateConversionStatus(id: number, status: JobStatus, progress?: number): Promise<Conversion>;
   updateConversionProgress(id: number, progress: number): Promise<Conversion>;
   updateConversionError(id: number, error: string): Promise<Conversion>;
-  
+
   // Account operations
   createAccount(account: InsertAccount): Promise<Account>;
   getAccount(id: number): Promise<Account | undefined>;
   getAccounts(): Promise<Account[]>;
   updateAccountUsage(id: number, storageUsed: number): Promise<Account>;
-  
+
   // Folder operations
   createFolder(folder: InsertFolder): Promise<Folder>;
   getFolder(id: number): Promise<Folder | undefined>;
@@ -64,7 +64,7 @@ export class MemStorage implements IStorage {
   private conversions: Map<number, Conversion>;
   private accounts: Map<number, Account>;
   private folders: Map<number, Folder>;
-  
+
   // ID counters for each entity
   private userIdCounter: number;
   private fileIdCounter: number;
@@ -82,7 +82,7 @@ export class MemStorage implements IStorage {
     this.conversions = new Map();
     this.accounts = new Map();
     this.folders = new Map();
-    
+
     this.userIdCounter = 1;
     this.fileIdCounter = 1;
     this.uploadIdCounter = 1;
@@ -90,7 +90,7 @@ export class MemStorage implements IStorage {
     this.conversionIdCounter = 1;
     this.accountIdCounter = 1;
     this.folderIdCounter = 1;
-    
+
     // Initialize with some default folders
     this.createFolder({ name: "C++ Basics" });
     this.createFolder({ name: "Game Development" });
@@ -114,7 +114,7 @@ export class MemStorage implements IStorage {
     this.users.set(id, user);
     return user;
   }
-  
+
   // File operations
   async createFile(insertFile: InsertFile): Promise<File> {
     const id = this.fileIdCounter++;
@@ -128,11 +128,11 @@ export class MemStorage implements IStorage {
     this.files.set(id, file);
     return file;
   }
-  
+
   async getFile(id: number): Promise<File | undefined> {
     return this.files.get(id);
   }
-  
+
   // Upload operations
   async createUpload(insertUpload: InsertUpload): Promise<Upload> {
     const id = this.uploadIdCounter++;
@@ -157,17 +157,17 @@ export class MemStorage implements IStorage {
     this.uploads.set(id, upload);
     return upload;
   }
-  
+
   async getUpload(id: number): Promise<Upload | undefined> {
     return this.uploads.get(id);
   }
-  
+
   async getUploadByIdentifier(identifier: string): Promise<Upload | undefined> {
     return Array.from(this.uploads.values()).find(
       (upload) => upload.identifier === identifier
     );
   }
-  
+
   async getUploads(options?: {
     category?: string;
     folderId?: string;
@@ -175,29 +175,29 @@ export class MemStorage implements IStorage {
     offset?: number;
   }): Promise<Upload[]> {
     let uploads = Array.from(this.uploads.values());
-    
+
     if (options?.category) {
       uploads = uploads.filter(upload => upload.category === options.category);
     }
-    
+
     if (options?.folderId) {
       uploads = uploads.filter(upload => upload.folderId === options.folderId);
     }
-    
+
     // Sort by createdAt (newest first)
     uploads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    
+
     if (options?.offset !== undefined && options?.limit !== undefined) {
       return uploads.slice(options.offset, options.offset + options.limit);
     }
-    
+
     return uploads;
   }
-  
+
   async updateUpload(id: number, update: Partial<Upload>): Promise<Upload> {
     const upload = this.uploads.get(id);
     if (!upload) throw new Error(`Upload with ID ${id} not found`);
-    
+
     const updatedUpload = { 
       ...upload, 
       ...update,
@@ -206,11 +206,11 @@ export class MemStorage implements IStorage {
     this.uploads.set(id, updatedUpload);
     return updatedUpload;
   }
-  
+
   async updateUploadStatus(id: number, status: FileStatus): Promise<Upload> {
     const upload = this.uploads.get(id);
     if (!upload) throw new Error(`Upload with ID ${id} not found`);
-    
+
     const updatedUpload = { 
       ...upload, 
       status, 
@@ -219,11 +219,11 @@ export class MemStorage implements IStorage {
     this.uploads.set(id, updatedUpload);
     return updatedUpload;
   }
-  
+
   async updateUploadThumbnail(id: number, thumbnailId: string): Promise<Upload> {
     const upload = this.uploads.get(id);
     if (!upload) throw new Error(`Upload with ID ${id} not found`);
-    
+
     const updatedUpload = { 
       ...upload, 
       thumbnail: thumbnailId, 
@@ -232,7 +232,7 @@ export class MemStorage implements IStorage {
     this.uploads.set(id, updatedUpload);
     return updatedUpload;
   }
-  
+
   // Chunk operations
   async createChunk(insertChunk: InsertChunk): Promise<Chunk> {
     const id = this.chunkIdCounter++;
@@ -245,23 +245,23 @@ export class MemStorage implements IStorage {
     this.chunks.set(id, chunk);
     return chunk;
   }
-  
+
   async getChunksByUploadId(uploadId: number, resolution?: string): Promise<Chunk[]> {
     let chunks = Array.from(this.chunks.values())
       .filter(chunk => chunk.uploadId === uploadId);
-    
+
     if (resolution) {
       chunks = chunks.filter(chunk => chunk.resolution === resolution);
     }
-    
+
     // Sort by index
     return chunks.sort((a, b) => a.index - b.index);
   }
-  
+
   async getChunk(id: number): Promise<Chunk | undefined> {
     return this.chunks.get(id);
   }
-  
+
   // Conversion operations
   async createConversion(insertConversion: InsertConversion): Promise<Conversion> {
     const id = this.conversionIdCounter++;
@@ -281,21 +281,21 @@ export class MemStorage implements IStorage {
     this.conversions.set(id, conversion);
     return conversion;
   }
-  
+
   async getConversion(id: number): Promise<Conversion | undefined> {
     return this.conversions.get(id);
   }
-  
+
   async getConversionsByUploadId(uploadId: number): Promise<Conversion[]> {
     return Array.from(this.conversions.values())
       .filter(conversion => conversion.uploadId === uploadId);
   }
-  
+
   async getConversionsByStatus(status: JobStatus): Promise<Conversion[]> {
     return Array.from(this.conversions.values())
       .filter(conversion => conversion.status === status);
   }
-  
+
   async getActiveConversions(): Promise<Conversion[]> {
     return Array.from(this.conversions.values())
       .filter(conversion => 
@@ -303,42 +303,42 @@ export class MemStorage implements IStorage {
         conversion.status === 'processing'
       );
   }
-  
+
   async getAllConversions(): Promise<Conversion[]> {
     return Array.from(this.conversions.values());
   }
-  
+
   async updateConversionStatus(id: number, status: JobStatus, progress?: number): Promise<Conversion> {
     const conversion = this.conversions.get(id);
     if (!conversion) throw new Error(`Conversion with ID ${id} not found`);
-    
+
     const now = new Date();
     const updatedConversion = { 
       ...conversion, 
       status, 
       updatedAt: now 
     };
-    
+
     if (progress !== undefined) {
       updatedConversion.progress = progress;
     }
-    
+
     if (status === 'processing' && !conversion.startedAt) {
       updatedConversion.startedAt = now;
     }
-    
+
     if (status === 'ready' || status === 'failed') {
       updatedConversion.completedAt = now;
     }
-    
+
     this.conversions.set(id, updatedConversion);
     return updatedConversion;
   }
-  
+
   async updateConversionProgress(id: number, progress: number): Promise<Conversion> {
     const conversion = this.conversions.get(id);
     if (!conversion) throw new Error(`Conversion with ID ${id} not found`);
-    
+
     const updatedConversion = { 
       ...conversion, 
       progress, 
@@ -347,11 +347,11 @@ export class MemStorage implements IStorage {
     this.conversions.set(id, updatedConversion);
     return updatedConversion;
   }
-  
+
   async updateConversionError(id: number, error: string): Promise<Conversion> {
     const conversion = this.conversions.get(id);
     if (!conversion) throw new Error(`Conversion with ID ${id} not found`);
-    
+
     const updatedConversion = { 
       ...conversion, 
       error, 
@@ -361,7 +361,7 @@ export class MemStorage implements IStorage {
     this.conversions.set(id, updatedConversion);
     return updatedConversion;
   }
-  
+
   // Account operations
   async createAccount(insertAccount: InsertAccount): Promise<Account> {
     const id = this.accountIdCounter++;
@@ -377,25 +377,25 @@ export class MemStorage implements IStorage {
     this.accounts.set(id, account);
     return account;
   }
-  
+
   async getAccount(id: number): Promise<Account | undefined> {
     return this.accounts.get(id);
   }
-  
+
   async getAccounts(): Promise<Account[]> {
     return Array.from(this.accounts.values());
   }
-  
+
   async getAccountByEmail(email: string): Promise<Account | undefined> {
     return Array.from(this.accounts.values()).find(
       (account) => account.email === email
     );
   }
-  
+
   async updateAccount(id: number, update: Partial<Account>): Promise<Account> {
     const account = this.accounts.get(id);
     if (!account) throw new Error(`Account with ID ${id} not found`);
-    
+
     const updatedAccount = { 
       ...account, 
       ...update,
@@ -404,15 +404,15 @@ export class MemStorage implements IStorage {
     this.accounts.set(id, updatedAccount);
     return updatedAccount;
   }
-  
+
   async deleteAccount(id: number): Promise<boolean> {
     return this.accounts.delete(id);
   }
-  
+
   async updateAccountUsage(id: number, storageUsed: number): Promise<Account> {
     const account = this.accounts.get(id);
     if (!account) throw new Error(`Account with ID ${id} not found`);
-    
+
     const updatedAccount = { 
       ...account, 
       storageUsed, 
@@ -421,7 +421,7 @@ export class MemStorage implements IStorage {
     this.accounts.set(id, updatedAccount);
     return updatedAccount;
   }
-  
+
   // Folder operations
   async createFolder(insertFolder: InsertFolder): Promise<Folder> {
     const id = this.folderIdCounter++;
@@ -434,20 +434,54 @@ export class MemStorage implements IStorage {
     this.folders.set(id, folder);
     return folder;
   }
-  
+
   async getFolder(id: number): Promise<Folder | undefined> {
     return this.folders.get(id);
   }
-  
+
   async getFolderByName(name: string): Promise<Folder | undefined> {
     return Array.from(this.folders.values()).find(
       (folder) => folder.name === name
     );
   }
-  
+
   async getFolders(): Promise<Folder[]> {
     return Array.from(this.folders.values());
   }
 }
 
-export const storage = new MemStorage();
+
+// Placeholder -  A real MongoStorage class would need to be implemented here.
+export class MongoStorage implements IStorage {
+  // Implement all IStorage methods using MongoDB interactions
+  getUser(id: number): Promise<User | undefined> { throw new Error("Method not implemented."); }
+  getUserByUsername(username: string): Promise<User | undefined> { throw new Error("Method not implemented."); }
+  createUser(user: InsertUser): Promise<User> { throw new Error("Method not implemented."); }
+  createFile(file: InsertFile): Promise<File> { throw new Error("Method not implemented."); }
+  getFile(id: number): Promise<File | undefined> { throw new Error("Method not implemented."); }
+  createUpload(upload: InsertUpload): Promise<Upload> { throw new Error("Method not implemented."); }
+  getUpload(id: number): Promise<Upload | undefined> { throw new Error("Method not implemented."); }
+  getUploadByIdentifier(identifier: string): Promise<Upload | undefined> { throw new Error("Method not implemented."); }
+  getUploads(options?: { category?: string | undefined; folderId?: string | undefined; limit?: number | undefined; offset?: number | undefined; }): Promise<Upload[]> { throw new Error("Method not implemented."); }
+  updateUploadStatus(id: number, status: FileStatus): Promise<Upload> { throw new Error("Method not implemented."); }
+  updateUploadThumbnail(id: number, thumbnailId: string): Promise<Upload> { throw new Error("Method not implemented."); }
+  createChunk(chunk: InsertChunk): Promise<Chunk> { throw new Error("Method not implemented."); }
+  getChunksByUploadId(uploadId: number, resolution?: string | undefined): Promise<Chunk[]> { throw new Error("Method not implemented."); }
+  getChunk(id: number): Promise<Chunk | undefined> { throw new Error("Method not implemented."); }
+  createConversion(conversion: InsertConversion): Promise<Conversion> { throw new Error("Method not implemented."); }
+  getConversion(id: number): Promise<Conversion | undefined> { throw new Error("Method not implemented."); }
+  getConversionsByUploadId(uploadId: number): Promise<Conversion[]> { throw new Error("Method not implemented."); }
+  updateConversionStatus(id: number, status: JobStatus, progress?: number | undefined): Promise<Conversion> { throw new Error("Method not implemented."); }
+  updateConversionProgress(id: number, progress: number): Promise<Conversion> { throw new Error("Method not implemented."); }
+  updateConversionError(id: number, error: string): Promise<Conversion> { throw new Error("Method not implemented."); }
+  createAccount(account: InsertAccount): Promise<Account> { throw new Error("Method not implemented."); }
+  getAccount(id: number): Promise<Account | undefined> { throw new Error("Method not implemented."); }
+  getAccounts(): Promise<Account[]> { throw new Error("Method not implemented."); }
+  updateAccountUsage(id: number, storageUsed: number): Promise<Account> { throw new Error("Method not implemented."); }
+  createFolder(folder: InsertFolder): Promise<Folder> { throw new Error("Method not implemented."); }
+  getFolder(id: number): Promise<Folder | undefined> { throw new Error("Method not implemented."); }
+  getFolderByName(name: string): Promise<Folder | undefined> { throw new Error("Method not implemented."); }
+  getFolders(): Promise<Folder[]> { throw new Error("Method not implemented."); }
+}
+
+export const storage = new MongoStorage();
