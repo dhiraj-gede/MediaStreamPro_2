@@ -169,6 +169,7 @@ router.post('/api/upload/complete', async (req: Request, res: Response) => {
     // Get total chunks by counting files in upload directory
     const files = await fs.readdir(uploadDir);
     const totalChunks = files.length;
+    console.log('total-chunks', totalChunks);
     
     // Combine chunks
     await chunker.combineUploadedChunks(
@@ -177,6 +178,8 @@ router.post('/api/upload/complete', async (req: Request, res: Response) => {
       './temp/uploads',
       `${uploadId}_${file.name}`
     );
+    console.log('uploading...');
+
     
     // Upload to Google Drive
     const externalFileId = await googleDriveService.uploadFile(
@@ -184,6 +187,7 @@ router.post('/api/upload/complete', async (req: Request, res: Response) => {
       file.mimeType,
       file.name
     );
+    console.log('externalFileId', externalFileId);
     
     // Update upload record with external file ID
     await storage.updateUpload(parseInt(uploadId, 10), {

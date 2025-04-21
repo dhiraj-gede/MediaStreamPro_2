@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // File categories enum
-export const fileCategories = ['video', 'image', 'document', 'code'] as const;
+export const fileCategories = ['video', 'image', 'document', 'code', 'all'] as const;
 export type FileCategory = typeof fileCategories[number];
 
 // File statuses
@@ -37,7 +37,7 @@ export type VideoResolution = typeof videoResolutions[number];
 export const files = pgTable("files", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  size: integer("size").notNull(), // size in bytes
+  size: bigint("size", { mode: "number" }).notNull(), // size in bytes
   mimeType: text("mime_type").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -60,7 +60,7 @@ export const uploads = pgTable("uploads", {
   externalFileId: text("external_file_id").notNull(), // Google Drive file ID
   source: text("source").notNull(), // e.g., "googledrive"
   fileId: integer("file_id").notNull(), // reference to files table
-  fileSize: integer("file_size").notNull(), // size in bytes
+  fileSize: bigint("file_size", { mode: "number" }).notNull(),
   uploadName: text("upload_name").notNull().default("Unnamed"),
   category: text("category").notNull(), // video, image, document, code
   thumbnail: text("thumbnail"), // Google Drive file ID for thumbnail
@@ -133,8 +133,8 @@ export const accounts = pgTable("accounts", {
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   credentialsPath: text("credentials_path").notNull(),
-  storageLimit: integer("storage_limit").notNull(), // in bytes
-  storageUsed: integer("storage_used").notNull().default(0), // in bytes
+  storageLimit: bigint("storage_limit", { mode: "number" }).notNull(), // Changed to bigint
+  storageUsed: bigint("storage_used", { mode: "number" }).notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

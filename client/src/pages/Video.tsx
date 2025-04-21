@@ -1,71 +1,94 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'wouter';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { VideoPlayer } from '@/components/VideoPlayer';
-import { JobStatus } from '@/components/JobStatus';
-import { Button } from '@/components/ui/button';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from '@/components/ui/dialog';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { ChevronLeft, Film, Play } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import React, { useState } from "react";
+import { Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { VideoPlayer } from "@/components/VideoPlayer";
+import { JobStatus } from "@/components/JobStatus";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ChevronLeft, Film, Play } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Video() {
-  const { id } = useParams();
+  const { id } = { id: "3" };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  const [selectedResolutions, setSelectedResolutions] = useState<string[]>(['720p']);
-  
+  const [selectedResolutions, setSelectedResolutions] = useState<string[]>([
+    "720p",
+  ]);
+
+  // Define the type for the video object
+  type VideoType = {
+    uploadName: string;
+    category: string;
+    fileSize: number;
+    createdAt: string;
+    status: string;
+    folderName?: string;
+    // add other properties as needed
+  };
+
   // Fetch video details
-  const { data: video, isLoading, error } = useQuery({
+  const {
+    data: video,
+    isLoading,
+    error,
+  } = useQuery<VideoType>({
     queryKey: [`/api/uploads/${id}`],
   });
 
+  console.log("video", video);
   // Create HLS conversion job mutation
   const convertMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/job/hls/create', {
+      const response = await apiRequest("POST", "/api/job/hls/create", {
         uploadId: parseInt(id!),
         resolutions: selectedResolutions,
       });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/job/hls/getConversionJobs?uploadId=${id}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/job/hls/getConversionJobs?uploadId=${id}`],
+      });
       toast({
-        title: 'Conversion job created',
-        description: 'The video is now being converted to HLS format.',
-        variant: 'success'
+        title: "Conversion job created",
+        description: "The video is now being converted to HLS format.",
+        variant: "default",
       });
       setConvertDialogOpen(false);
     },
     onError: (error: any) => {
       toast({
-        title: 'Conversion failed',
-        description: error.message || 'There was an error starting the conversion job.',
-        variant: 'destructive'
+        title: "Conversion failed",
+        description:
+          error.message || "There was an error starting the conversion job.",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const toggleResolution = (resolution: string) => {
     if (selectedResolutions.includes(resolution)) {
-      setSelectedResolutions(selectedResolutions.filter(r => r !== resolution));
+      setSelectedResolutions(
+        selectedResolutions.filter((r) => r !== resolution)
+      );
     } else {
       setSelectedResolutions([...selectedResolutions, resolution]);
     }
@@ -78,7 +101,7 @@ export default function Video() {
   if (error || !video) {
     return (
       <div className="py-8 text-center text-red-500">
-        Error loading video: {(error as Error)?.message || 'Video not found'}
+        Error loading video: {(error as Error)?.message || "Video not found"}
       </div>
     );
   }
@@ -100,7 +123,7 @@ export default function Video() {
         <div className="lg:col-span-2">
           <VideoPlayer uploadId={id!} title={video.uploadName} />
         </div>
-        
+
         <div className="space-y-4">
           <div className="bg-white rounded-lg shadow-sm p-4">
             <h2 className="text-lg font-medium mb-3">Video Information</h2>
@@ -123,12 +146,12 @@ export default function Video() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-sm text-muted-foreground">Folder:</dt>
-                <dd>{video.folderName || 'Uncategorized'}</dd>
+                <dd>{video.folderName || "Uncategorized"}</dd>
               </div>
             </dl>
 
             <div className="mt-4 pt-4 border-t">
-              <Button 
+              <Button
                 onClick={() => setConvertDialogOpen(true)}
                 className="w-full"
               >
@@ -153,51 +176,56 @@ export default function Video() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-4">
-              Select which resolutions you want to convert this video to. Higher resolutions will require more processing time.
+              Select which resolutions you want to convert this video to. Higher
+              resolutions will require more processing time.
             </p>
-            
+
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="resolution-1080p" 
-                  checked={selectedResolutions.includes('1080p')}
-                  onCheckedChange={() => toggleResolution('1080p')}
+                <Checkbox
+                  id="resolution-1080p"
+                  checked={selectedResolutions.includes("1080p")}
+                  onCheckedChange={() => toggleResolution("1080p")}
                 />
                 <Label htmlFor="resolution-1080p">1080p (Full HD)</Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="resolution-720p" 
-                  checked={selectedResolutions.includes('720p')}
-                  onCheckedChange={() => toggleResolution('720p')}
+                <Checkbox
+                  id="resolution-720p"
+                  checked={selectedResolutions.includes("720p")}
+                  onCheckedChange={() => toggleResolution("720p")}
                 />
                 <Label htmlFor="resolution-720p">720p (HD)</Label>
               </div>
-              
+
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="resolution-360p" 
-                  checked={selectedResolutions.includes('360p')}
-                  onCheckedChange={() => toggleResolution('360p')}
+                <Checkbox
+                  id="resolution-360p"
+                  checked={selectedResolutions.includes("360p")}
+                  onCheckedChange={() => toggleResolution("360p")}
                 />
                 <Label htmlFor="resolution-360p">360p (SD)</Label>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setConvertDialogOpen(false)}
               disabled={convertMutation.isPending}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => convertMutation.mutate()}
-              disabled={selectedResolutions.length === 0 || convertMutation.isPending}
+              disabled={
+                selectedResolutions.length === 0 || convertMutation.isPending
+              }
             >
-              {convertMutation.isPending ? 'Starting conversion...' : 'Start Conversion'}
+              {convertMutation.isPending
+                ? "Starting conversion..."
+                : "Start Conversion"}
             </Button>
           </DialogFooter>
         </DialogContent>

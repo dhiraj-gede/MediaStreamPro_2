@@ -7,12 +7,13 @@ import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from './config/db';
 import { configurePassport } from './config/auth';
 import { logger } from './utils/logger';
+import config from "./config";
 
 // MongoDB connection string
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/content-delivery-system';
+const MONGODB_URI = config.db.uri || 'mongodb://localhost:27017/content-delivery-system';
 
 // Secret for the session
-const SESSION_SECRET = process.env.SESSION_SECRET || 'content-delivery-system-secret';
+const SESSION_SECRET = config.session.secret || 'content-delivery-system-secret';
 
 // Initialize Express app
 const app = express();
@@ -35,7 +36,7 @@ let sessionConfig: any = {
 
 // Only use MongoStore if we have a real MongoDB URI
 // Otherwise, sessions will be stored in memory (not persisted between restarts)
-if (process.env.MONGODB_URI) {
+if (config.db.uri) {
   logger.info('Using MongoDB session store');
   sessionConfig.store = MongoStore.create({
     mongoUrl: MONGODB_URI,
@@ -118,8 +119,7 @@ app.use((req, res, next) => {
     const port = 5000;
     server.listen({
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host: "localhost",
     }, () => {
       log(`serving on port ${port}`);
     });

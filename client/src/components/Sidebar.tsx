@@ -53,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ closeMobile }) => {
     <nav className="py-4">
       <ul>
         <NavItem 
-          href="/" 
+          href="/dashboard" 
           icon={<Home className="h-5 w-5" />} 
           isActive={location === '/'} 
           onClick={closeMobile}

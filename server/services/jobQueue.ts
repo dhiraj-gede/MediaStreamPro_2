@@ -4,6 +4,7 @@ import { storage } from '../storage';
 import { hlsConverter } from './hlsConverter';
 import { fileProcessor } from './fileProcessor';
 import { logger } from '../utils/logger';
+import config from 'server/config';
 
 // Create a mock Redis client if Redis is not available
 class MockRedis {
@@ -50,7 +51,7 @@ let redisConnection: Redis | MockRedis;
 
 // Always use Redis mock for now to avoid connection issues
 logger.info('Using Redis mock for development');
-redisConnection = new MockRedis() as any;
+redisConnection = new Redis(config.redis.url);
 
 // Job types
 export enum JobType {

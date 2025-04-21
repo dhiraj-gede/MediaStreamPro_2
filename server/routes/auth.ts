@@ -10,7 +10,7 @@ const router = Router();
  * @desc    Authenticate with GitHub
  * @access  Public
  */
-router.get('/auth/github', passport.authenticate('github'));
+router.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 /**
  * @route   GET /auth/github/callback

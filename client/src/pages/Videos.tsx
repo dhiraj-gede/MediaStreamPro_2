@@ -1,27 +1,27 @@
-import React, { useState } from 'react';
-import { FileList } from '@/components/FileList';
-import { FileUploader } from '@/components/FileUploader';
-import { ImportDialog } from '@/components/ImportDialog';
-import { Button } from '@/components/ui/button';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { UploadCloud, Download } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from "react";
+import { FileList } from "@/components/FileList";
+import { FileUploader } from "@/components/FileUploader";
+import { ImportDialog } from "@/components/ImportDialog";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { UploadCloud, Download } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Videos() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState<string>('');
-  
+  const [selectedFolder, setSelectedFolder] = useState<string>("all");
+
   // Fetch folders for dropdown
   const { data: folders = [] } = useQuery({
-    queryKey: ['/api/folders'],
-    initialData: []
+    queryKey: ["/api/folders"],
+    initialData: [],
   });
 
   return (
@@ -48,7 +48,7 @@ export default function Videos() {
                 <SelectValue placeholder="All Folders" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Folders</SelectItem>
+                <SelectItem value="all">All Folders</SelectItem>
                 {folders.map((folder: any) => (
                   <SelectItem key={folder.id} value={folder.id.toString()}>
                     {folder.name}
@@ -62,17 +62,23 @@ export default function Videos() {
 
       {/* Videos List */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <FileList 
+        <FileList
           category="video"
-          folderId={selectedFolder || undefined} 
+          folderId={selectedFolder !== "all" ? selectedFolder : undefined}
         />
       </div>
 
       {/* File Upload Dialog */}
-      <FileUploader isOpen={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} />
+      <FileUploader
+        isOpen={uploadDialogOpen}
+        onClose={() => setUploadDialogOpen(false)}
+      />
 
       {/* Import Dialog */}
-      <ImportDialog isOpen={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
+      <ImportDialog
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+      />
     </div>
   );
 }

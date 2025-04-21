@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
 import { logger } from '../utils/logger';
+import config from '../config';
 
 // MongoDB connection string
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/content-delivery-system';
+const MONGODB_URI = config.db.uri || 'mongodb://localhost:27017/content-delivery-system';
 
 /**
  * Mock memory storage for development without MongoDB

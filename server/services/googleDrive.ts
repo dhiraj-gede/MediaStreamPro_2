@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import fs from 'fs/promises';
+import { createReadStream, createWriteStream } from 'fs';
 import path from 'path';
 import { Account } from '@shared/schema';
 import { logger } from '../utils/logger';
@@ -25,7 +26,7 @@ class GoogleDriveService {
     try {
       // Get all accounts from storage
       const accounts = await storage.getAccounts();
-      
+
       if (accounts.length === 0) {
         logger.warn('No Google Drive service accounts found. Please add accounts.');
         return;
@@ -100,14 +101,14 @@ class GoogleDriveService {
 
     // Get updated account storage usage
     const accounts = await storage.getAccounts();
-    
+
     // Find the account with the most free space
     let optimalAccount: Account | undefined;
     let maxFreeSpace = -1;
 
     for (const account of accounts) {
       if (!account.isActive) continue;
-      
+
       const freeSpace = account.storageLimit - account.storageUsed;
       if (freeSpace > maxFreeSpace) {
         maxFreeSpace = freeSpace;
@@ -140,23 +141,27 @@ class GoogleDriveService {
     }
 
     try {
+      console.log('getting ServiceAccount')
       const serviceAccount = await this.getOptimalServiceAccount();
-      
+      console.log('service account', serviceAccount);
+
       const fileMetadata = {
         name: fileName,
       };
-      
+
       const media = {
-        mimeType,
-        body: fs.createReadStream(filePath),
+        body: createReadStream(filePath),
       };
-      
+
+      console.log('got media and fileMetadata');
+
       const response = await serviceAccount.drive.files.create({
         resource: fileMetadata,
         media,
         fields: 'id',
       });
-      
+      console.log('upload response', response)
+
       // Make the file publicly accessible (for streaming)
       await serviceAccount.drive.permissions.create({
         fileId: response.data.id,
@@ -165,7 +170,7 @@ class GoogleDriveService {
           type: 'anyone',
         },
       });
-      
+
       // Update account storage usage
       const fileStats = await fs.stat(filePath);
       const accountInfo = await storage.getAccount(serviceAccount.id);
@@ -175,7 +180,7 @@ class GoogleDriveService {
           accountInfo.storageUsed + fileStats.size
         );
       }
-      
+
       logger.info(`File uploaded to Google Drive: ${fileName}, ID: ${response.data.id}`);
       return response.data.id;
     } catch (error) {
@@ -199,7 +204,7 @@ class GoogleDriveService {
           fileId,
           fields: 'id,name,mimeType,size',
         });
-        
+
         return response.data;
       } catch (error: any) {
         if (error.code === 404) {
@@ -209,7 +214,7 @@ class GoogleDriveService {
         throw error;
       }
     }
-    
+
     throw new Error(`File not found: ${fileId}`);
   }
 
@@ -223,13 +228,13 @@ class GoogleDriveService {
 
     for (const serviceAccount of this.serviceAccounts) {
       try {
-        const dest = fs.createWriteStream(destination);
-        
+        const dest = createWriteStream(destination);
+
         const response = await serviceAccount.drive.files.get(
           { fileId, alt: 'media' },
           { responseType: 'stream' }
         );
-        
+
         return new Promise((resolve, reject) => {
           response.data
             .on('end', () => {
@@ -250,7 +255,7 @@ class GoogleDriveService {
         throw error;
       }
     }
-    
+
     throw new Error(`File not found: ${fileId}`);
   }
 
@@ -282,7 +287,7 @@ class GoogleDriveService {
         throw error;
       }
     }
-    
+
     throw new Error(`File not found: ${fileId}`);
   }
 
@@ -299,10 +304,10 @@ class GoogleDriveService {
         const response = await serviceAccount.drive.about.get({
           fields: 'storageQuota',
         });
-        
+
         const { storageQuota } = response.data;
         const usedBytes = parseInt(storageQuota.usage, 10);
-        
+
         await storage.updateAccountUsage(serviceAccount.id, usedBytes);
         logger.info(`Updated storage usage for account ${serviceAccount.email}: ${usedBytes} bytes`);
       } catch (error) {

@@ -41,7 +41,7 @@ const ProtectedRoutes = () => {
     <AuthGuard>
       <Layout>
         <Switch>
-          <Route path="/" component={Dashboard} />
+          <Route path="/dashboard" component={Dashboard} />
           <Route path="/files" component={Files} />
           <Route path="/videos" component={Videos} />
           <Route path="/video/:id" component={Video} />
@@ -60,6 +60,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/:rest*" component={ProtectedRoutes} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
