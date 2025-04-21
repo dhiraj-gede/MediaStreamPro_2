@@ -5,6 +5,8 @@ import multer from "multer";
 import { join } from "path";
 import fs from "fs/promises";
 import { mkdir } from "fs/promises";
+import { logger } from './utils/logger';
+import { isAuthenticated } from './config/auth';
 
 // Import route modules
 import { registerUploadRoutes } from "./routes/upload";
@@ -12,6 +14,8 @@ import { registerJobRoutes } from "./routes/jobs";
 import { registerStreamRoutes } from "./routes/stream";
 import { registerAccountRoutes } from "./routes/accounts";
 import { registerFileRoutes } from "./routes/files";
+import { registerAuthRoutes } from "./routes/auth";
+import { registerServiceAccountRoutes } from "./routes/serviceAccounts";
 
 // Create necessary directories
 async function ensureDirectories() {
