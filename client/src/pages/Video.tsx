@@ -24,8 +24,11 @@ import { ChevronLeft, Film, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-export default function Video() {
-  const { id } = { id: "3" };
+interface VideoProps {
+  id: string;
+}
+
+export default function Video({ id }: VideoProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);

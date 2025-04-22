@@ -1,19 +1,21 @@
 
 import { Switch, Route, Redirect } from "wouter";
-import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
+import { queryClient } from "./lib/queryClient";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "./hooks/useAuth";
+import { AuthGuard } from "./components/AuthGuard";
 import { Layout } from "@/components/Layout";
+
+// Pages
 import Dashboard from "@/pages/Dashboard";
 import Files from "@/pages/Files";
 import Videos from "@/pages/Videos";
 import Video from "@/pages/Video";
 import Jobs from "@/pages/Jobs";
 import Storage from "@/pages/Storage";
-import { AuthProvider } from "./hooks/useAuth";
-import { AuthGuard } from "./components/AuthGuard";
+import NotFound from "@/pages/not-found";
 
 // Login page component
 const Login = () => {
@@ -36,20 +38,33 @@ const Login = () => {
   );
 };
 
-// Protected routes component
 const ProtectedRoutes = () => {
   return (
     <AuthGuard>
       <Layout>
         <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/files" component={Files} />
-          <Route path="/videos" component={Videos} />
-          <Route path="/video/:id" component={Video} />
-          <Route path="/jobs" component={Jobs} />
-          <Route path="/storage" component={Storage} />
-          <Route path="/:rest*">
+          <Route path="/">
+            <Dashboard />
+          </Route>
+          <Route path="/dashboard">
+            <Dashboard />
+          </Route>
+          <Route path="/files">
+            <Files />
+          </Route>
+          <Route path="/videos">
+            <Videos />
+          </Route>
+          <Route path="/video/:id">
+            {(params) => <Video id={params.id} />}
+          </Route>
+          <Route path="/jobs">
+            <Jobs />
+          </Route>
+          <Route path="/storage">
+            <Storage />
+          </Route>
+          <Route>
             <NotFound />
           </Route>
         </Switch>
@@ -58,23 +73,16 @@ const ProtectedRoutes = () => {
   );
 };
 
-// Main router
-function Router() {
-  return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/:path*" component={ProtectedRoutes} />
-    </Switch>
-  );
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <Switch>
+            <Route path="/login" component={Login} />
+            <Route path="/:rest*" component={ProtectedRoutes} />
+          </Switch>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
