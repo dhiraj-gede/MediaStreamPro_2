@@ -1,8 +1,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import videojs from 'video.js';
+import type Player from 'video.js/dist/types/player';
 import 'video.js/dist/video-js.css';
-import Player from 'video.js/dist/types/player';
 
 interface VideoPlayerProps {
   src: string;
@@ -23,12 +23,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     if (!videoRef.current) return;
 
-    const videoElement = videoRef.current;
     const options = {
       autoplay,
       controls,
-      responsive: true,
-      fluid: true,
       sources: [{
         src,
         type: src.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'
@@ -43,8 +40,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
 
-    // Initialize video.js player
-    playerRef.current = videojs(videoElement, options);
+    const player = videojs(videoRef.current, options);
+    playerRef.current = player;
 
     return () => {
       if (playerRef.current) {
@@ -56,7 +53,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   return (
     <div data-vjs-player>
-      <video 
+      <video
         ref={videoRef}
         className="video-js vjs-big-play-centered vjs-fluid"
       />

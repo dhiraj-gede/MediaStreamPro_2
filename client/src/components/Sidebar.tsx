@@ -25,11 +25,9 @@ const NavItem: React.FC<NavItemProps> = ({
         isActive ? "text-primary font-medium" : ""
       }`}
     >
-      <Link href={href} onClick={onClick}>
-        <a className="flex items-center space-x-2">
-          {icon}
-          <span>{children}</span>
-        </a>
+      <Link href={href} onClick={onClick} className="flex items-center space-x-2">
+        {icon}
+        <span>{children}</span>
       </Link>
     </li>
   );
