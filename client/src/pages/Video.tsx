@@ -67,7 +67,7 @@ export default function Video({ params = 0 }: VideoProps) {
   const convertMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/job/hls/create", {
-        uploadId: (videoId),
+        uploadId: parseInt(videoId, 10),
         resolutions: selectedResolutions,
       });
       return response.json();
