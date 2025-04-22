@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { fileCategories } from '@shared/schema';
 import { z } from 'zod';
+import { UploadModel } from 'server/models/mongoose';
 
 const router = Router();
 
@@ -31,40 +32,40 @@ const validateCategory = (category: string): boolean => {
 router.post('/api/upload/init', async (req: Request, res: Response) => {
   try {
     const { category, folderName, fileName, fileSize, fileType, totalChunks } = req.body;
-    
+
     // Validate required fields
     if (!fileName || !fileSize || !fileType) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    
+
     // Validate category
     if (!validateCategory(category)) {
       return res.status(400).json({ error: 'Invalid category' });
     }
-    
+
     // Generate unique identifier
     const identifier = uuidv4();
-    
+
     // Create folder if provided and doesn't exist
     let folderId: string | undefined;
-    
+
     if (folderName) {
       let folder = await storage.getFolderByName(folderName);
-      
+
       if (!folder) {
         folder = await storage.createFolder({ name: folderName });
       }
-      
+
       folderId = folder.id.toString();
     }
-    
+
     // Create file record
     const file = await storage.createFile({
       name: fileName,
       size: parseInt(fileSize, 10),
       mimeType: fileType,
     });
-    
+
     // Create upload record
     const upload = await storage.createUpload({
       identifier,
@@ -79,12 +80,12 @@ router.post('/api/upload/init', async (req: Request, res: Response) => {
       folderId,
       folderName,
     });
-    
+
     // Create upload directory
     const uploadDir = path.join('./temp/uploads', `upload_${upload.id}`);
     await fs.mkdir(uploadDir, { recursive: true });
-    
-    res.status(200).json({ 
+
+    res.status(200).json({
       uploadId: upload.id,
       identifier,
       totalChunks,
@@ -100,24 +101,24 @@ router.post('/api/upload/init', async (req: Request, res: Response) => {
  */
 router.post('/api/upload/chunk', async (req: any, res: Response) => {
   const upload = req.app.locals.upload;
-  
+
   upload.single('chunk')(req, res, async (err: any) => {
     if (err) {
       logger.error('Chunk upload failed:', err);
       return res.status(400).json({ error: err.message });
     }
-    
+
     try {
       const { uploadId, chunkIndex } = req.body;
-      
+
       if (!uploadId || chunkIndex === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
-      
+
       if (!req.file) {
         return res.status(400).json({ error: 'No chunk file provided' });
       }
-      
+
       // Process the chunk
       const chunkPath = await chunker.handleUploadedChunk(
         req.file,
@@ -125,8 +126,8 @@ router.post('/api/upload/chunk', async (req: any, res: Response) => {
         parseInt(chunkIndex, 10),
         './temp/uploads'
       );
-      
-      res.status(200).json({ 
+
+      res.status(200).json({
         success: true,
         uploadId,
         chunkIndex,
@@ -145,32 +146,32 @@ router.post('/api/upload/chunk', async (req: any, res: Response) => {
 router.post('/api/upload/complete', async (req: Request, res: Response) => {
   try {
     const { uploadId } = req.body;
-    
+
     if (!uploadId) {
       return res.status(400).json({ error: 'Missing upload ID' });
     }
-    
+
     // Get upload record
     const upload = await storage.getUpload(parseInt(uploadId, 10));
     if (!upload) {
       return res.status(404).json({ error: 'Upload not found' });
     }
-    
+
     // Get file record
     const file = await storage.getFile(upload.fileId);
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
-    
+
     // Combine chunks into a complete file
     const outputFilePath = path.join('./temp/uploads', `${uploadId}_${file.name}`);
     const uploadDir = path.join('./temp/uploads', `upload_${uploadId}`);
-    
+
     // Get total chunks by counting files in upload directory
     const files = await fs.readdir(uploadDir);
     const totalChunks = files.length;
     console.log('total-chunks', totalChunks);
-    
+
     // Combine chunks
     await chunker.combineUploadedChunks(
       parseInt(uploadId, 10),
@@ -180,7 +181,7 @@ router.post('/api/upload/complete', async (req: Request, res: Response) => {
     );
     console.log('uploading...');
 
-    
+
     // Upload to Google Drive
     const externalFileId = await googleDriveService.uploadFile(
       outputFilePath,
@@ -188,13 +189,13 @@ router.post('/api/upload/complete', async (req: Request, res: Response) => {
       file.name
     );
     console.log('externalFileId', externalFileId);
-    
+
     // Update upload record with external file ID
-    await storage.updateUpload(parseInt(uploadId, 10), {
+    await UploadModel.updateOne({ uploadId: parseInt(uploadId, 10) }, {
       externalFileId,
       status: 'ready'
     });
-    
+
     // Generate thumbnail/preview based on file type
     if (file.mimeType.startsWith('video/')) {
       // Schedule thumbnail generation job
@@ -203,12 +204,12 @@ router.post('/api/upload/complete', async (req: Request, res: Response) => {
       // Schedule preview generation job
       await jobQueue.addPreviewJob(parseInt(uploadId, 10), externalFileId, file.mimeType);
     }
-    
+
     // Clean up temporary files
     await fs.unlink(outputFilePath);
     await fs.rm(uploadDir, { recursive: true, force: true });
-    
-    res.status(200).json({ 
+
+    res.status(200).json({
       success: true,
       uploadId,
       externalFileId
@@ -224,39 +225,39 @@ router.post('/api/upload/complete', async (req: Request, res: Response) => {
  */
 router.post('/api/upload', async (req: any, res: Response) => {
   const upload = req.app.locals.upload;
-  
+
   upload.single('file')(req, res, async (err: any) => {
     if (err) {
       logger.error('File upload failed:', err);
       return res.status(400).json({ error: err.message });
     }
-    
+
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No file provided' });
       }
-      
+
       const { category, folderId, folderName } = req.body;
-      
+
       // Validate category
       if (!validateCategory(category)) {
         return res.status(400).json({ error: 'Invalid category' });
       }
-      
+
       // Create file record
       const file = await storage.createFile({
         name: req.file.originalname,
         size: req.file.size,
         mimeType: req.file.mimetype,
       });
-      
+
       // Upload to Google Drive
       const externalFileId = await googleDriveService.uploadFile(
         req.file.path,
         req.file.mimetype,
         req.file.originalname
       );
-      
+
       // Create upload record
       const upload = await storage.createUpload({
         fileType: req.file.mimetype,
@@ -270,7 +271,7 @@ router.post('/api/upload', async (req: any, res: Response) => {
         folderId,
         folderName,
       });
-      
+
       // Generate thumbnail/preview based on file type
       if (req.file.mimetype.startsWith('video/')) {
         // Schedule thumbnail generation job
@@ -279,11 +280,11 @@ router.post('/api/upload', async (req: any, res: Response) => {
         // Schedule preview generation job
         await jobQueue.addPreviewJob(upload.id, externalFileId, req.file.mimetype);
       }
-      
+
       // Clean up temporary file
       await fs.unlink(req.file.path);
-      
-      res.status(200).json({ 
+
+      res.status(200).json({
         success: true,
         uploadId: upload.id,
         externalFileId
@@ -301,30 +302,32 @@ router.post('/api/upload', async (req: any, res: Response) => {
 router.get('/api/upload/googledrive', async (req: Request, res: Response) => {
   try {
     const { fileId, uploadName, fileType, category, folderId, folderName } = req.query;
-    
+
     // Validate required fields
-    if (!fileId || !uploadName || !fileType || !category) {
+    if (!fileId || !uploadName || !category || !fileType) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    
+
     // Validate category
     if (!validateCategory(category as string)) {
       return res.status(400).json({ error: 'Invalid category' });
     }
-    
+
     // Download the file to get metadata
+    console.log('checker1')
     const tempPath = path.join('./temp', `import_${Date.now()}`);
-    
+
     // Get file details from Google Drive
     const fileDetails = await googleDriveService.getFile(fileId as string);
-    
+    console.log('checker2')
     // Create file record
     const file = await storage.createFile({
       name: uploadName as string,
       size: fileDetails.size || 0,
       mimeType: fileType as string,
     });
-    
+    console.log('checker3')
+
     // Create upload record
     const upload = await storage.createUpload({
       fileType: fileType as string,
@@ -338,7 +341,8 @@ router.get('/api/upload/googledrive', async (req: Request, res: Response) => {
       folderId: folderId as string,
       folderName: folderName as string,
     });
-    
+
+    console.log('checker4')
     // Generate thumbnail/preview based on file type
     if ((fileType as string).startsWith('video/')) {
       // Schedule thumbnail generation job
@@ -347,8 +351,9 @@ router.get('/api/upload/googledrive', async (req: Request, res: Response) => {
       // Schedule preview generation job
       await jobQueue.addPreviewJob(upload.id, fileId as string, fileType as string);
     }
-    
-    res.status(200).json({ 
+    console.log('checker4')
+
+    res.status(200).json({
       success: true,
       uploadId: upload.id,
       externalFileId: fileId
@@ -364,30 +369,37 @@ router.get('/api/upload/googledrive', async (req: Request, res: Response) => {
  */
 router.get('/api/uploads', async (req: Request, res: Response) => {
   try {
-    const { 
-      category, 
-      folderId, 
-      page = '1', 
-      limit = '10' 
+    const {
+      category,
+      folderId,
+      page = '1',
+      limit = '10'
     } = req.query;
-    
+
     const pageNumber = parseInt(page as string, 10);
     const pageSize = parseInt(limit as string, 10);
-    
+
     // Get uploads with pagination - using try/catch for all storage operations
     let uploads: any[] = [];
     try {
-      uploads = await storage.getUploads({
-        category: category as string,
-        folderId: folderId as string,
-        offset: (pageNumber - 1) * pageSize,
-        limit: pageSize,
-      });
+      if (category === 'uncategorized') {
+        uploads = await googleDriveService.getAllFiles();
+      }
+      else {
+
+        uploads = await storage.getUploads({
+          category: category as string,
+          folderId: folderId as string,
+          offset: (pageNumber - 1) * pageSize,
+          limit: pageSize,
+        });
+      }
+
     } catch (err) {
       logger.error('Failed to get uploads:', err);
       uploads = []; // Fallback to empty array
     }
-    
+
     // Get total count of uploads - without relying on storage.count()
     let total = 0;
     try {
@@ -400,7 +412,7 @@ router.get('/api/uploads', async (req: Request, res: Response) => {
       logger.error('Failed to get count:', err);
       total = uploads.length; // Fallback to length of current page uploads
     }
-    
+
     // Return uploads as "files" to match the client expectation
     res.status(200).json({
       files: uploads,
@@ -421,13 +433,13 @@ router.get('/api/uploads', async (req: Request, res: Response) => {
 router.get('/api/uploads/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     const upload = await storage.getUpload(parseInt(id, 10));
-    
+
     if (!upload) {
       return res.status(404).json({ error: 'Upload not found' });
     }
-    
+
     res.status(200).json(upload);
   } catch (error) {
     logger.error(`Failed to get upload ${req.params.id}:`, error);

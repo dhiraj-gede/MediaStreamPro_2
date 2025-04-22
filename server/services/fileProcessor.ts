@@ -43,23 +43,26 @@ class FileProcessor {
       // Download the video file from Google Drive
       const videoPath = path.join(this.tempDir, `${uploadId}_thumbnail_original.mp4`);
       const thumbnailPath = path.join(this.tempDir, `${uploadId}_thumbnail.jpg`);
-      
+
       await googleDriveService.downloadFile(externalFileId, videoPath);
-      
+
       // Generate thumbnail using FFmpeg
       await hlsConverter.generateThumbnail(videoPath, thumbnailPath);
-      
+      console.log('thumbnailPath', thumbnailPath, videoPath);
+
       // Upload thumbnail to Google Drive
       const thumbnailId = await googleDriveService.uploadFile(
-        thumbnailPath, 
-        'image/jpeg', 
+        thumbnailPath,
+        'image/jpeg',
         `${uploadId}_thumbnail.jpg`
       );
-      
+      console.log('success')
+
       // Clean up temporary files
       await fs.rm(videoPath, { force: true });
       await fs.rm(thumbnailPath, { force: true });
-      
+      console.log('cleanUp completed')
+
       return thumbnailId;
     } catch (error) {
       logger.error(`Failed to generate video thumbnail for upload ${uploadId}:`, error);
@@ -75,25 +78,24 @@ class FileProcessor {
       // Download the image file from Google Drive
       const imagePath = path.join(this.tempDir, `${uploadId}_original.jpg`);
       const thumbnailPath = path.join(this.tempDir, `${uploadId}_thumbnail.jpg`);
-      
+
       await googleDriveService.downloadFile(externalFileId, imagePath);
-      
       // Generate thumbnail using Sharp
       await sharp(imagePath)
         .resize(200, 200, { fit: 'inside' })
         .toFile(thumbnailPath);
-      
+
       // Upload thumbnail to Google Drive
       const thumbnailId = await googleDriveService.uploadFile(
-        thumbnailPath, 
-        'image/jpeg', 
+        thumbnailPath,
+        'image/jpeg',
         `${uploadId}_thumbnail.jpg`
       );
-      
+
       // Clean up temporary files
       await fs.rm(imagePath, { force: true });
       await fs.rm(thumbnailPath, { force: true });
-      
+
       return thumbnailId;
     } catch (error) {
       logger.error(`Failed to generate image thumbnail for upload ${uploadId}:`, error);
@@ -109,9 +111,9 @@ class FileProcessor {
       // Download the PDF file from Google Drive
       const pdfPath = path.join(this.tempDir, `${uploadId}_original.pdf`);
       const previewPath = path.join(this.tempDir, `${uploadId}_preview.jpg`);
-      
+
       await googleDriveService.downloadFile(externalFileId, pdfPath);
-      
+
       // Generate preview from first page
       if (pdf2pic) {
         const pdfToPicture = pdf2pic(pdfPath, {
@@ -121,7 +123,7 @@ class FileProcessor {
           savePath: this.tempDir,
           saveFilename: `${uploadId}_preview`,
         });
-        
+
         await pdfToPicture(1);
       } else {
         // If pdf2pic is not available, create a placeholder preview
@@ -133,8 +135,8 @@ class FileProcessor {
             background: { r: 255, g: 255, b: 255, alpha: 1 }
           }
         })
-        .composite([{
-          input: Buffer.from(`<svg width="595" height="842" xmlns="http://www.w3.org/2000/svg">
+          .composite([{
+            input: Buffer.from(`<svg width="595" height="842" xmlns="http://www.w3.org/2000/svg">
             <rect width="595" height="842" fill="#f5f5f5"/>
             <text x="50%" y="50%" text-anchor="middle" font-family="Arial" font-size="24" fill="#666">
               PDF Preview
@@ -143,23 +145,23 @@ class FileProcessor {
               (Preview generation limited)
             </text>
           </svg>`),
-          top: 0,
-          left: 0
-        }])
-        .toFile(previewPath);
+            top: 0,
+            left: 0
+          }])
+          .toFile(previewPath);
       }
-      
+
       // Upload preview to Google Drive
       const previewId = await googleDriveService.uploadFile(
-        previewPath, 
-        'image/jpeg', 
+        previewPath,
+        'image/jpeg',
         `${uploadId}_preview.jpg`
       );
-      
+
       // Clean up temporary files
       await fs.rm(pdfPath, { force: true });
       await fs.rm(previewPath, { force: true });
-      
+
       return previewId;
     } catch (error) {
       logger.error(`Failed to generate PDF preview for upload ${uploadId}:`, error);
@@ -205,24 +207,24 @@ class FileProcessor {
    * Get a file from the cache or download it
    */
   async getFileFromCacheOrDownload(
-    externalFileId: string, 
+    externalFileId: string,
     suffix: string = '',
     maxCacheTime: number = 24 * 60 * 60 * 1000 // 24 hours
   ): Promise<string> {
     const cacheFilePath = path.join(this.cacheDir, `${externalFileId}${suffix}`);
-    
+
     try {
       // Check if file exists in cache
       if (await this.fileExistsInCache(cacheFilePath)) {
         // Check if cache is not expired
         const stats = await fs.stat(cacheFilePath);
         const fileAge = Date.now() - stats.mtimeMs;
-        
+
         if (fileAge < maxCacheTime) {
           return cacheFilePath; // Return cached file path
         }
       }
-      
+
       // Download the file from Google Drive
       await googleDriveService.downloadFile(externalFileId, cacheFilePath);
       return cacheFilePath;

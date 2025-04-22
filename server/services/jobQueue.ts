@@ -91,7 +91,7 @@ class JobQueueService {
   private async processGenerateThumbnail(job: Job): Promise<string> {
     const { uploadId, externalFileId } = job.data;
 
-    logger.info(`Processing thumbnail generation job: uploadId=${uploadId}`);
+    logger.info(`Processing thumbnail generation job: uploadId=${uploadId} externalFileId=${externalFileId}`);
 
     try {
       return await fileProcessor.generateVideoThumbnail(uploadId, externalFileId);

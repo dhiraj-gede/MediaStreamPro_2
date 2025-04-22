@@ -1,23 +1,22 @@
-import { 
-  User, InsertUser, File, InsertFile, 
+import mongoose from 'mongoose';
+import {
+  User, InsertUser, File, InsertFile,
   Upload, InsertUpload, Chunk, InsertChunk,
   Conversion, InsertConversion, Account, InsertAccount,
-  Folder, InsertFolder,
-  FileStatus, JobStatus
-} from "@shared/schema";
+  Folder, InsertFolder, FileStatus, JobStatus
+} from '@shared/schema';
+import {
+  UserModel, FileModel, UploadModel, ChunkModel,
+  ConversionModel, ServiceAccount, FolderModel
+} from './models/mongoose';
+import { logger } from './utils/logger';
 
-// Storage interface for all CRUD operations
 export interface IStorage {
-  // User operations (keeping from template)
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-
-  // File operations
   createFile(file: InsertFile): Promise<File>;
   getFile(id: number): Promise<File | undefined>;
-
-  // Upload operations
   createUpload(upload: InsertUpload): Promise<Upload>;
   getUpload(id: number): Promise<Upload | undefined>;
   getUploadByIdentifier(identifier: string): Promise<Upload | undefined>;
@@ -29,143 +28,192 @@ export interface IStorage {
   }): Promise<Upload[]>;
   updateUploadStatus(id: number, status: FileStatus): Promise<Upload>;
   updateUploadThumbnail(id: number, thumbnailId: string): Promise<Upload>;
-
-  // Chunk operations
   createChunk(chunk: InsertChunk): Promise<Chunk>;
   getChunksByUploadId(uploadId: number, resolution?: string): Promise<Chunk[]>;
   getChunk(id: number): Promise<Chunk | undefined>;
-
-  // Conversion operations
   createConversion(conversion: InsertConversion): Promise<Conversion>;
   getConversion(id: number): Promise<Conversion | undefined>;
   getConversionsByUploadId(uploadId: number): Promise<Conversion[]>;
   updateConversionStatus(id: number, status: JobStatus, progress?: number): Promise<Conversion>;
   updateConversionProgress(id: number, progress: number): Promise<Conversion>;
   updateConversionError(id: number, error: string): Promise<Conversion>;
-
-  // Account operations
   createAccount(account: InsertAccount): Promise<Account>;
   getAccount(id: number): Promise<Account | undefined>;
   getAccounts(): Promise<Account[]>;
-  updateAccountUsage(id: number, storageUsed: number): Promise<Account>;
-
-  // Folder operations
+  updateAccountUsage(id: string, storageUsed: number): Promise<Account>;
   createFolder(folder: InsertFolder): Promise<Folder>;
   getFolder(id: number): Promise<Folder | undefined>;
   getFolderByName(name: string): Promise<Folder | undefined>;
   getFolders(): Promise<Folder[]>;
+  updateFolder(id: number, update: Partial<Folder>): Promise<Folder>;
+  deleteFolder(id: number): Promise<boolean>;
+  count(options?: { folderId?: string }): Promise<number>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private files: Map<number, File>;
-  private uploads: Map<number, Upload>;
-  private chunks: Map<number, Chunk>;
-  private conversions: Map<number, Conversion>;
-  private accounts: Map<number, Account>;
-  private folders: Map<number, Folder>;
-
-  // ID counters for each entity
-  private userIdCounter: number;
-  private fileIdCounter: number;
-  private uploadIdCounter: number;
-  private chunkIdCounter: number;
-  private conversionIdCounter: number;
-  private accountIdCounter: number;
-  private folderIdCounter: number;
+export class MongoStorage implements IStorage {
+  private userIdCounter: number = 1;
+  private fileIdCounter: number = 1;
+  private uploadIdCounter: number = 1;
+  private chunkIdCounter: number = 1;
+  private conversionIdCounter: number = 1;
+  private accountIdCounter: number = 1;
+  private folderIdCounter: number = 1;
 
   constructor() {
-    this.users = new Map();
-    this.files = new Map();
-    this.uploads = new Map();
-    this.chunks = new Map();
-    this.conversions = new Map();
-    this.accounts = new Map();
-    this.folders = new Map();
-
-    this.userIdCounter = 1;
-    this.fileIdCounter = 1;
-    this.uploadIdCounter = 1;
-    this.chunkIdCounter = 1;
-    this.conversionIdCounter = 1;
-    this.accountIdCounter = 1;
-    this.folderIdCounter = 1;
-
-    // Initialize with some default folders
-    this.createFolder({ name: "C++ Basics" });
-    this.createFolder({ name: "Game Development" });
-    this.createFolder({ name: "Full-Stack Projects" });
+    logger.debug('Starting MongoStorage constructor');
+    this.initializeCounters();
+    this.initializeDefaultFolders();
+    logger.debug('Completed MongoStorage constructor');
   }
 
-  // User operations (keeping from template)
+  private async initializeCounters() {
+    logger.debug('Starting initializeCounters');
+    const [maxUser, maxFile, maxUpload, maxChunk, maxConversion, maxAccount, maxFolder] = await Promise.all([
+      UserModel.findOne().sort({ id: -1 }).exec(),
+      FileModel.findOne().sort({ id: -1 }).exec(),
+      UploadModel.findOne().sort({ id: -1 }).exec(),
+      ChunkModel.findOne().sort({ id: -1 }).exec(),
+      ConversionModel.findOne().sort({ id: -1 }).exec(),
+      ServiceAccount.findOne().sort({ id: -1 }).exec(),
+      FolderModel.findOne().sort({ id: -1 }).exec(),
+    ]);
+
+    this.userIdCounter = (maxUser?.id || 0) + 1;
+    this.fileIdCounter = (maxFile?.id || 0) + 1;
+    this.uploadIdCounter = (maxUpload?.id || 0) + 1;
+    this.chunkIdCounter = (maxChunk?.id || 0) + 1;
+    this.conversionIdCounter = (maxConversion?.id || 0) + 1;
+    this.accountIdCounter = (maxAccount?.id || 0) + 1;
+    this.folderIdCounter = (maxFolder?.id || 0) + 1;
+
+    logger.debug(`Initialized counters: user=${this.userIdCounter}, file=${this.fileIdCounter}, upload=${this.uploadIdCounter}, chunk=${this.chunkIdCounter}, conversion=${this.conversionIdCounter}, account=${this.accountIdCounter}, folder=${this.folderIdCounter}`);
+  }
+
+  private async initializeDefaultFolders() {
+    logger.debug('Starting initializeDefaultFolders');
+    const defaultFolders = ['C++ Basics', 'Game Development', 'Full-Stack Projects'];
+    for (const name of defaultFolders) {
+      logger.debug(`Checking for default folder: name=${name}`);
+      const existing = await FolderModel.findOne({ name }).exec();
+      if (!existing) {
+        logger.debug(`Creating default folder: name=${name}`);
+        await this.createFolder({ name });
+      } else {
+        logger.debug(`Default folder already exists: name=${name}`);
+      }
+    }
+    logger.debug('Completed initializeDefaultFolders');
+  }
+
+  // User operations
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    logger.debug(`Starting getUser: id=${id}`);
+    const user = await UserModel.findOne({ id }).exec();
+    if (user) {
+      logger.debug(`Found user: id=${id}, username=${user.username}`);
+    } else {
+      logger.debug(`User not found: id=${id}`);
+    }
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    logger.debug(`Starting getUserByUsername: username=${username}`);
+    const user = await UserModel.findOne({ username }).exec();
+    if (user) {
+      logger.debug(`Found user: username=${username}, id=${user.id}`);
+    } else {
+      logger.debug(`User not found: username=${username}`);
+    }
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
+    logger.debug(`Starting createUser: username=${insertUser.username}`);
     const id = this.userIdCounter++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    logger.debug(`Assigned user ID: id=${id}`);
+    const user = new UserModel({ ...insertUser, id });
+    await user.save();
+    logger.debug(`Created user: id=${id}, username=${insertUser.username}`);
+    return user.toObject();
   }
 
   // File operations
   async createFile(insertFile: InsertFile): Promise<File> {
+    logger.debug(`Starting createFile: name=${insertFile.name}`);
     const id = this.fileIdCounter++;
+    logger.debug(`Assigned file ID: id=${id}`);
     const now = new Date();
-    const file: File = { 
-      ...insertFile, 
-      id, 
-      createdAt: now, 
-      updatedAt: now 
-    };
-    this.files.set(id, file);
-    return file;
+    const file = new FileModel({
+      ...insertFile,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await file.save();
+    logger.debug(`Created file: id=${id}, name=${insertFile.name}`);
+    return file.toObject();
   }
 
   async getFile(id: number): Promise<File | undefined> {
-    return this.files.get(id);
+    logger.debug(`Starting getFile: id=${id}`);
+    const file = await FileModel.findOne({ id }).exec();
+    if (file) {
+      logger.debug(`Found file: id=${id}, name=${file.name}`);
+    } else {
+      logger.debug(`File not found: id=${id}`);
+    }
+    return file || undefined;
   }
 
   // Upload operations
   async createUpload(insertUpload: InsertUpload): Promise<Upload> {
+    logger.debug(`Starting createUpload: uploadName=${insertUpload.uploadName || 'Unnamed'}`);
     const id = this.uploadIdCounter++;
+    logger.debug(`Assigned upload ID: id=${id}`);
     const now = new Date();
-    const upload: Upload = { 
+    const upload = new UploadModel({
       id,
       fileType: insertUpload.fileType,
       externalFileId: insertUpload.externalFileId,
       source: insertUpload.source,
       fileId: insertUpload.fileId,
       fileSize: insertUpload.fileSize,
-      uploadName: insertUpload.uploadName ?? "Unnamed",
+      uploadName: insertUpload.uploadName ?? 'Unnamed',
       category: insertUpload.category,
       status: insertUpload.status ?? 'processing',
       identifier: insertUpload.identifier ?? null,
       folderName: insertUpload.folderName ?? null,
       thumbnail: insertUpload.thumbnail ?? null,
       folderId: insertUpload.folderId ?? null,
-      createdAt: now, 
-      updatedAt: now 
-    };
-    this.uploads.set(id, upload);
-    return upload;
+      createdAt: now,
+      updatedAt: now,
+    });
+    await upload.save();
+    logger.debug(`Created upload: id=${id}, uploadName=${upload.uploadName}`);
+    return upload.toObject();
   }
 
   async getUpload(id: number): Promise<Upload | undefined> {
-    return this.uploads.get(id);
+    logger.debug(`Starting getUpload: id=${id}`);
+    const upload = await UploadModel.findOne({ id }).exec();
+    if (upload) {
+      logger.debug(`Found upload: id=${id}, uploadName=${upload.uploadName}`);
+    } else {
+      logger.debug(`Upload not found: id=${id}`);
+    }
+    return upload || undefined;
   }
 
   async getUploadByIdentifier(identifier: string): Promise<Upload | undefined> {
-    return Array.from(this.uploads.values()).find(
-      (upload) => upload.identifier === identifier
-    );
+    logger.debug(`Starting getUploadByIdentifier: identifier=${identifier}`);
+    const upload = await UploadModel.findOne({ identifier }).exec();
+    if (upload) {
+      logger.debug(`Found upload: identifier=${identifier}, id=${upload.id}`);
+    } else {
+      logger.debug(`Upload not found: identifier=${identifier}`);
+    }
+    return upload || undefined;
   }
 
   async getUploads(options?: {
@@ -174,99 +222,101 @@ export class MemStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Upload[]> {
-    let uploads = Array.from(this.uploads.values());
-
+    logger.debug(`Starting getUploads: options=${JSON.stringify(options)}`);
+    const query: any = {};
     if (options?.category) {
-      uploads = uploads.filter(upload => upload.category === options.category);
+      query.category = options.category;
     }
-
     if (options?.folderId) {
-      uploads = uploads.filter(upload => upload.folderId === options.folderId);
+      query.folderId = options.folderId;
     }
 
-    // Sort by createdAt (newest first)
-    uploads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
+    let uploadsQuery = UploadModel.find(query).sort({ createdAt: -1 });
     if (options?.offset !== undefined && options?.limit !== undefined) {
-      return uploads.slice(options.offset, options.offset + options.limit);
+      uploadsQuery = uploadsQuery.skip(options.offset).limit(options.limit);
+      logger.debug(`Applying pagination: offset=${options.offset}, limit=${options.limit}`);
     }
 
-    return uploads;
-  }
-
-  async updateUpload(id: number, update: Partial<Upload>): Promise<Upload> {
-    const upload = this.uploads.get(id);
-    if (!upload) throw new Error(`Upload with ID ${id} not found`);
-
-    const updatedUpload = { 
-      ...upload, 
-      ...update,
-      updatedAt: new Date() 
-    };
-    this.uploads.set(id, updatedUpload);
-    return updatedUpload;
+    const uploads = await uploadsQuery.exec();
+    logger.debug(`Retrieved ${uploads.length} uploads`);
+    return uploads.map((upload: mongoose.Document & Upload) => upload.toObject() as Upload);
   }
 
   async updateUploadStatus(id: number, status: FileStatus): Promise<Upload> {
-    const upload = this.uploads.get(id);
-    if (!upload) throw new Error(`Upload with ID ${id} not found`);
-
-    const updatedUpload = { 
-      ...upload, 
-      status, 
-      updatedAt: new Date() 
-    };
-    this.uploads.set(id, updatedUpload);
-    return updatedUpload;
+    logger.debug(`Starting updateUploadStatus: id=${id}, status=${status}`);
+    const upload = await UploadModel.findOneAndUpdate(
+      { id },
+      { status, updatedAt: new Date() },
+      { new: true }
+    ).exec();
+    if (!upload) {
+      logger.error(`Upload not found: id=${id}`);
+      throw new Error(`Upload with ID ${id} not found`);
+    }
+    logger.debug(`Updated upload status: id=${id}, status=${status}`);
+    return upload.toObject();
   }
 
   async updateUploadThumbnail(id: number, thumbnailId: string): Promise<Upload> {
-    const upload = this.uploads.get(id);
-    if (!upload) throw new Error(`Upload with ID ${id} not found`);
-
-    const updatedUpload = { 
-      ...upload, 
-      thumbnail: thumbnailId, 
-      updatedAt: new Date() 
-    };
-    this.uploads.set(id, updatedUpload);
-    return updatedUpload;
+    logger.debug(`Starting updateUploadThumbnail: id=${id}, thumbnailId=${thumbnailId}`);
+    const upload = await UploadModel.findOneAndUpdate(
+      { id },
+      { thumbnail: thumbnailId, updatedAt: new Date() },
+      { new: true }
+    ).exec();
+    if (!upload) {
+      logger.error(`Upload not found: id=${id}`);
+      throw new Error(`Upload with ID ${id} not found`);
+    }
+    logger.debug(`Updated upload thumbnail: id=${id}, thumbnailId=${thumbnailId}`);
+    return upload.toObject();
   }
 
   // Chunk operations
   async createChunk(insertChunk: InsertChunk): Promise<Chunk> {
+    logger.debug(`Starting createChunk: uploadId=${insertChunk.uploadId}`);
     const id = this.chunkIdCounter++;
+    logger.debug(`Assigned chunk ID: id=${id}`);
     const now = new Date();
-    const chunk: Chunk = { 
-      ...insertChunk, 
-      id, 
-      createdAt: now 
-    };
-    this.chunks.set(id, chunk);
-    return chunk;
+    const chunk = new ChunkModel({
+      ...insertChunk,
+      id,
+      createdAt: now,
+    });
+    await chunk.save();
+    logger.debug(`Created chunk: id=${id}, uploadId=${insertChunk.uploadId}`);
+    return chunk.toObject();
   }
 
   async getChunksByUploadId(uploadId: number, resolution?: string): Promise<Chunk[]> {
-    let chunks = Array.from(this.chunks.values())
-      .filter(chunk => chunk.uploadId === uploadId);
-
+    logger.debug(`Starting getChunksByUploadId: uploadId=${uploadId}, resolution=${resolution || 'none'}`);
+    const query: any = { uploadId };
     if (resolution) {
-      chunks = chunks.filter(chunk => chunk.resolution === resolution);
+      query.resolution = resolution;
     }
-
-    // Sort by index
-    return chunks.sort((a, b) => a.index - b.index);
+    const chunks = await ChunkModel.find(query).sort({ index: 1 }).exec();
+    logger.debug(`Retrieved ${chunks.length} chunks for uploadId=${uploadId}`);
+    return chunks.map((chunk: mongoose.Document & Chunk) => chunk.toObject() as Chunk);
   }
 
   async getChunk(id: number): Promise<Chunk | undefined> {
-    return this.chunks.get(id);
+    logger.debug(`Starting getChunk: id=${id}`);
+    const chunk = await ChunkModel.findOne({ id }).exec();
+    if (chunk) {
+      logger.debug(`Found chunk: id=${id}, uploadId=${chunk.uploadId}`);
+    } else {
+      logger.debug(`Chunk not found: id=${id}`);
+    }
+    return chunk || undefined;
   }
 
   // Conversion operations
   async createConversion(insertConversion: InsertConversion): Promise<Conversion> {
+    logger.debug(`Starting createConversion: uploadId=${insertConversion.uploadId}, resolution=${insertConversion.resolution}`);
     const id = this.conversionIdCounter++;
+    logger.debug(`Assigned conversion ID: id=${id}`);
     const now = new Date();
-    const conversion: Conversion = { 
+    const conversion = new ConversionModel({
       id,
       uploadId: insertConversion.uploadId,
       resolution: insertConversion.resolution,
@@ -275,213 +325,223 @@ export class MemStorage implements IStorage {
       startedAt: null,
       completedAt: null,
       error: null,
-      createdAt: now, 
-      updatedAt: now 
-    };
-    this.conversions.set(id, conversion);
-    return conversion;
+      createdAt: now,
+      updatedAt: now,
+    });
+    await conversion.save();
+    logger.debug(`Created conversion: id=${id}, uploadId=${insertConversion.uploadId}`);
+    return conversion.toObject();
   }
 
   async getConversion(id: number): Promise<Conversion | undefined> {
-    return this.conversions.get(id);
+    logger.debug(`Starting getConversion: id=${id}`);
+    const conversion = await ConversionModel.findOne({ id }).exec();
+    if (conversion) {
+      logger.debug(`Found conversion: id=${id}, uploadId=${conversion.uploadId}`);
+    } else {
+      logger.debug(`Conversion not found: id=${id}`);
+    }
+    return conversion || undefined;
   }
 
   async getConversionsByUploadId(uploadId: number): Promise<Conversion[]> {
-    return Array.from(this.conversions.values())
-      .filter(conversion => conversion.uploadId === uploadId);
-  }
-
-  async getConversionsByStatus(status: JobStatus): Promise<Conversion[]> {
-    return Array.from(this.conversions.values())
-      .filter(conversion => conversion.status === status);
-  }
-
-  async getActiveConversions(): Promise<Conversion[]> {
-    return Array.from(this.conversions.values())
-      .filter(conversion => 
-        conversion.status === 'waiting' || 
-        conversion.status === 'processing'
-      );
-  }
-
-  async getAllConversions(): Promise<Conversion[]> {
-    return Array.from(this.conversions.values());
+    logger.debug(`Starting getConversionsByUploadId: uploadId=${uploadId}`);
+    const conversions = await ConversionModel.find({ uploadId }).exec();
+    logger.debug(`Retrieved ${conversions.length} conversions for uploadId=${uploadId}`);
+    return conversions.map((conversion: mongoose.Document & Conversion) => conversion.toObject() as Conversion);
   }
 
   async updateConversionStatus(id: number, status: JobStatus, progress?: number): Promise<Conversion> {
-    const conversion = this.conversions.get(id);
-    if (!conversion) throw new Error(`Conversion with ID ${id} not found`);
-
-    const now = new Date();
-    const updatedConversion = { 
-      ...conversion, 
-      status, 
-      updatedAt: now 
-    };
-
+    logger.debug(`Starting updateConversionStatus: id=${id}, status=${status}, progress=${progress || 'none'}`);
+    const update: any = { status, updatedAt: new Date() };
     if (progress !== undefined) {
-      updatedConversion.progress = progress;
+      update.progress = progress;
     }
-
-    if (status === 'processing' && !conversion.startedAt) {
-      updatedConversion.startedAt = now;
+    if (status === 'processing') {
+      update.startedAt = update.startedAt || new Date();
     }
-
     if (status === 'ready' || status === 'failed') {
-      updatedConversion.completedAt = now;
+      update.completedAt = new Date();
     }
 
-    this.conversions.set(id, updatedConversion);
-    return updatedConversion;
+    const conversion = await ConversionModel.findOneAndUpdate(
+      { id },
+      update,
+      { new: true }
+    ).exec();
+    if (!conversion) {
+      logger.error(`Conversion not found: id=${id}`);
+      throw new Error(`Conversion with ID ${id} not found`);
+    }
+    logger.debug(`Updated conversion status: id=${id}, status=${status}`);
+    return conversion.toObject();
   }
 
   async updateConversionProgress(id: number, progress: number): Promise<Conversion> {
-    const conversion = this.conversions.get(id);
-    if (!conversion) throw new Error(`Conversion with ID ${id} not found`);
-
-    const updatedConversion = { 
-      ...conversion, 
-      progress, 
-      updatedAt: new Date() 
-    };
-    this.conversions.set(id, updatedConversion);
-    return updatedConversion;
+    logger.debug(`Starting updateConversionProgress: id=${id}, progress=${progress}`);
+    const conversion = await ConversionModel.findOneAndUpdate(
+      { id },
+      { progress, updatedAt: new Date() },
+      { new: true }
+    ).exec();
+    if (!conversion) {
+      logger.error(`Conversion not found: id=${id}`);
+      throw new Error(`Conversion with ID ${id} not found`);
+    }
+    logger.debug(`Updated conversion progress: id=${id}, progress=${progress}`);
+    return conversion.toObject();
   }
 
   async updateConversionError(id: number, error: string): Promise<Conversion> {
-    const conversion = this.conversions.get(id);
-    if (!conversion) throw new Error(`Conversion with ID ${id} not found`);
-
-    const updatedConversion = { 
-      ...conversion, 
-      error, 
-      status: 'failed' as JobStatus, 
-      updatedAt: new Date() 
-    };
-    this.conversions.set(id, updatedConversion);
-    return updatedConversion;
+    logger.debug(`Starting updateConversionError: id=${id}, error=${error}`);
+    const conversion = await ConversionModel.findOneAndUpdate(
+      { id },
+      { error, status: 'failed', updatedAt: new Date() },
+      { new: true }
+    ).exec();
+    if (!conversion) {
+      logger.error(`Conversion not found: id=${id}`);
+      throw new Error(`Conversion with ID ${id} not found`);
+    }
+    logger.debug(`Updated conversion error: id=${id}, error=${error}`);
+    return conversion.toObject();
   }
 
   // Account operations
   async createAccount(insertAccount: InsertAccount): Promise<Account> {
+    logger.debug(`Starting createAccount: email=${insertAccount.email}`);
     const id = this.accountIdCounter++;
+    logger.debug(`Assigned account ID: id=${id}`);
     const now = new Date();
-    const account: Account = { 
-      ...insertAccount, 
-      id, 
+    const account = new ServiceAccount({
+      ...insertAccount,
+      id,
       storageUsed: 0,
       isActive: insertAccount.isActive !== undefined ? insertAccount.isActive : true,
-      createdAt: now, 
-      updatedAt: now 
-    };
-    this.accounts.set(id, account);
-    return account;
+      createdAt: now,
+      updatedAt: now,
+      credentials: { client_email: insertAccount.email, private_key: '' },
+      userId: new mongoose.Types.ObjectId(),
+    });
+    await account.save();
+    logger.debug(`Created account: id=${id}, email=${insertAccount.email}`);
+    return account.toObject();
   }
 
   async getAccount(id: number): Promise<Account | undefined> {
-    return this.accounts.get(id);
+    logger.debug(`Starting getAccount: id=${id}`);
+    const account = await ServiceAccount.findOne({ id }).exec();
+    if (account) {
+      logger.debug(`Found account: id=${id}, email=${account.email}`);
+    } else {
+      logger.debug(`Account not found: id=${id}`);
+    }
+    return account || undefined;
   }
 
   async getAccounts(): Promise<Account[]> {
-    return Array.from(this.accounts.values());
+    logger.debug('Starting getAccounts');
+    const accounts = await ServiceAccount.find().exec();
+    logger.debug(`Retrieved ${accounts.length} accounts`);
+    return accounts.map((account: mongoose.Document & Account) => account.toObject() as Account);
   }
 
-  async getAccountByEmail(email: string): Promise<Account | undefined> {
-    return Array.from(this.accounts.values()).find(
-      (account) => account.email === email
-    );
-  }
-
-  async updateAccount(id: number, update: Partial<Account>): Promise<Account> {
-    const account = this.accounts.get(id);
-    if (!account) throw new Error(`Account with ID ${id} not found`);
-
-    const updatedAccount = { 
-      ...account, 
-      ...update,
-      updatedAt: new Date() 
-    };
-    this.accounts.set(id, updatedAccount);
-    return updatedAccount;
-  }
-
-  async deleteAccount(id: number): Promise<boolean> {
-    return this.accounts.delete(id);
-  }
-
-  async updateAccountUsage(id: number, storageUsed: number): Promise<Account> {
-    const account = this.accounts.get(id);
-    if (!account) throw new Error(`Account with ID ${id} not found`);
-
-    const updatedAccount = { 
-      ...account, 
-      storageUsed, 
-      updatedAt: new Date() 
-    };
-    this.accounts.set(id, updatedAccount);
-    return updatedAccount;
+  async updateAccountUsage(id: string, storageUsed: number): Promise<Account> {
+    logger.debug(`Starting updateAccountUsage: id=${id}, storageUsed=${storageUsed}`);
+    const account = await ServiceAccount.findOneAndUpdate(
+      { _id: id },
+      { storageUsed, updatedAt: new Date() },
+      { new: true }
+    ).exec();
+    if (!account) {
+      logger.error(`Account not found: id=${id}`);
+      throw new Error(`Account with ID ${id} not found`);
+    }
+    logger.debug(`Updated account usage: id=${id}, storageUsed=${storageUsed}`);
+    return account.toObject();
   }
 
   // Folder operations
   async createFolder(insertFolder: InsertFolder): Promise<Folder> {
+    logger.debug(`Starting createFolder: name=${insertFolder.name}`);
     const id = this.folderIdCounter++;
+    logger.debug(`Assigned folder ID: id=${id}`);
     const now = new Date();
-    const folder: Folder = { 
-      ...insertFolder, 
-      id, 
-      createdAt: now 
-    };
-    this.folders.set(id, folder);
-    return folder;
+    const folder = new FolderModel({
+      ...insertFolder,
+      id,
+      createdAt: now,
+    });
+    await folder.save();
+    logger.debug(`Created folder: id=${id}, name=${insertFolder.name}`);
+    return folder.toObject();
   }
 
   async getFolder(id: number): Promise<Folder | undefined> {
-    return this.folders.get(id);
+    logger.debug(`Starting getFolder: id=${id}`);
+    const folder = await FolderModel.findOne({ id }).exec();
+    if (folder) {
+      logger.debug(`Found folder: id=${id}, name=${folder.name}`);
+    } else {
+      logger.debug(`Folder not found: id=${id}`);
+    }
+    return folder || undefined;
   }
 
   async getFolderByName(name: string): Promise<Folder | undefined> {
-    return Array.from(this.folders.values()).find(
-      (folder) => folder.name === name
-    );
+    logger.debug(`Starting getFolderByName: name=${name}`);
+    const folder = await FolderModel.findOne({ name }).exec();
+    if (folder) {
+      logger.debug(`Found folder: name=${name}, id=${folder.id}`);
+    } else {
+      logger.debug(`Folder not found: name=${name}`);
+    }
+    return folder || undefined;
   }
 
   async getFolders(): Promise<Folder[]> {
-    return Array.from(this.folders.values());
+    logger.debug('Starting getFolders');
+    const folders = await FolderModel.find().exec();
+    logger.debug(`Retrieved ${folders.length} folders`);
+    return folders.map((folder: mongoose.Document & Folder) => folder.toObject() as Folder);
   }
-}
 
+  async updateFolder(id: number, update: Partial<Folder>): Promise<Folder> {
+    logger.debug(`Starting updateFolder: id=${id}, update=${JSON.stringify(update)}`);
+    const folder = await FolderModel.findOneAndUpdate(
+      { id },
+      { ...update, updatedAt: new Date() },
+      { new: true }
+    ).exec();
+    if (!folder) {
+      logger.error(`Folder not found: id=${id}`);
+      throw new Error(`Folder with ID ${id} not found`);
+    }
+    logger.debug(`Updated folder: id=${id}, name=${folder.name}`);
+    return folder.toObject();
+  }
 
-// Placeholder -  A real MongoStorage class would need to be implemented here.
-export class MongoStorage implements IStorage {
-  // Implement all IStorage methods using MongoDB interactions
-  getUser(id: number): Promise<User | undefined> { throw new Error("Method not implemented."); }
-  getUserByUsername(username: string): Promise<User | undefined> { throw new Error("Method not implemented."); }
-  createUser(user: InsertUser): Promise<User> { throw new Error("Method not implemented."); }
-  createFile(file: InsertFile): Promise<File> { throw new Error("Method not implemented."); }
-  getFile(id: number): Promise<File | undefined> { throw new Error("Method not implemented."); }
-  createUpload(upload: InsertUpload): Promise<Upload> { throw new Error("Method not implemented."); }
-  getUpload(id: number): Promise<Upload | undefined> { throw new Error("Method not implemented."); }
-  getUploadByIdentifier(identifier: string): Promise<Upload | undefined> { throw new Error("Method not implemented."); }
-  getUploads(options?: { category?: string | undefined; folderId?: string | undefined; limit?: number | undefined; offset?: number | undefined; }): Promise<Upload[]> { throw new Error("Method not implemented."); }
-  updateUploadStatus(id: number, status: FileStatus): Promise<Upload> { throw new Error("Method not implemented."); }
-  updateUploadThumbnail(id: number, thumbnailId: string): Promise<Upload> { throw new Error("Method not implemented."); }
-  createChunk(chunk: InsertChunk): Promise<Chunk> { throw new Error("Method not implemented."); }
-  getChunksByUploadId(uploadId: number, resolution?: string | undefined): Promise<Chunk[]> { throw new Error("Method not implemented."); }
-  getChunk(id: number): Promise<Chunk | undefined> { throw new Error("Method not implemented."); }
-  createConversion(conversion: InsertConversion): Promise<Conversion> { throw new Error("Method not implemented."); }
-  getConversion(id: number): Promise<Conversion | undefined> { throw new Error("Method not implemented."); }
-  getConversionsByUploadId(uploadId: number): Promise<Conversion[]> { throw new Error("Method not implemented."); }
-  updateConversionStatus(id: number, status: JobStatus, progress?: number | undefined): Promise<Conversion> { throw new Error("Method not implemented."); }
-  updateConversionProgress(id: number, progress: number): Promise<Conversion> { throw new Error("Method not implemented."); }
-  updateConversionError(id: number, error: string): Promise<Conversion> { throw new Error("Method not implemented."); }
-  createAccount(account: InsertAccount): Promise<Account> { throw new Error("Method not implemented."); }
-  getAccount(id: number): Promise<Account | undefined> { throw new Error("Method not implemented."); }
-  getAccounts(): Promise<Account[]> { throw new Error("Method not implemented."); }
-  updateAccountUsage(id: number, storageUsed: number): Promise<Account> { throw new Error("Method not implemented."); }
-  createFolder(folder: InsertFolder): Promise<Folder> { throw new Error("Method not implemented."); }
-  getFolder(id: number): Promise<Folder | undefined> { throw new Error("Method not implemented."); }
-  getFolderByName(name: string): Promise<Folder | undefined> { throw new Error("Method not implemented."); }
-  getFolders(): Promise<Folder[]> { throw new Error("Method not implemented."); }
+  async deleteFolder(id: number): Promise<boolean> {
+    logger.debug(`Starting deleteFolder: id=${id}`);
+    const result = await FolderModel.deleteOne({ id }).exec();
+    if (result.deletedCount > 0) {
+      logger.debug(`Deleted folder: id=${id}`);
+    } else {
+      logger.debug(`Folder not found for deletion: id=${id}`);
+    }
+    return result.deletedCount > 0;
+  }
+
+  async count(options?: { folderId?: string }): Promise<number> {
+    logger.debug(`Starting count: options=${JSON.stringify(options)}`);
+    const query: any = {};
+    if (options?.folderId) {
+      query.folderId = options.folderId;
+    }
+    const count = await UploadModel.countDocuments(query).exec();
+    logger.debug(`Counted ${count} uploads for query=${JSON.stringify(query)}`);
+    return count;
+  }
 }
 
 export const storage = new MongoStorage();

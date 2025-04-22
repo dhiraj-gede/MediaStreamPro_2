@@ -3,7 +3,8 @@ import { ServiceAccount } from '../models/mongoose';
 import { isAuthenticated } from '../config/auth';
 import { logger } from '../utils/logger';
 import mongoose from 'mongoose';
-
+import fs from 'fs'
+import { googleDriveService } from 'server/services/googleDrive';
 const router = Router();
 
 /**
@@ -13,36 +14,50 @@ const router = Router();
  */
 router.post('/api/service-accounts', isAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { name, email, credentials, storageLimit, isActive } = req.body;
-    
+    const { name, email, credentialsPath, storageLimit, isActive } = req.body;
+
     // Validate required fields
-    if (!name || !email || !credentials) {
+    if (!name || !email || !credentialsPath) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    
+    // Read credentials from credentialsPath (JSON file)
+
+    let credentials;
+    try {
+      const credentialsData = fs.readFileSync(credentialsPath, 'utf-8');
+      credentials = JSON.parse(credentialsData);
+    } catch (err) {
+      return res.status(400).json({ error: 'Failed to read or parse credentials file' });
+    }
+
     // Check if credentials is a valid JSON object with required fields
     const requiredFields = [
-      'type', 'project_id', 'private_key_id', 'private_key', 
-      'client_email', 'client_id', 'auth_uri', 'token_uri', 
+      'type', 'project_id', 'private_key_id', 'private_key',
+      'client_email', 'client_id', 'auth_uri', 'token_uri',
       'auth_provider_x509_cert_url', 'client_x509_cert_url'
     ];
-    
+
     for (const field of requiredFields) {
       if (!credentials[field]) {
         return res.status(400).json({ error: `Missing required credential field: ${field}` });
       }
     }
-    
+
+
     // Check if service account with this email already exists for this user
-    const existingAccount = await ServiceAccount.findOne({ 
+    const existingAccount = await ServiceAccount.findOne({
       email: credentials.client_email,
-      userId: (req.user as any)._id 
+      userId: (req.user as any)._id
     });
-    
+
+
+
     if (existingAccount) {
       return res.status(400).json({ error: 'Service account with this email already exists' });
     }
-    
+
+
+
     // Create service account
     const serviceAccount = await ServiceAccount.create({
       name,
@@ -53,7 +68,9 @@ router.post('/api/service-accounts', isAuthenticated, async (req: Request, res: 
       isActive: isActive !== undefined ? isActive : true,
       userId: (req.user as any)._id
     });
-    
+
+
+
     // Remove sensitive information before sending response
     const response = {
       id: serviceAccount._id,
@@ -64,7 +81,7 @@ router.post('/api/service-accounts', isAuthenticated, async (req: Request, res: 
       isActive: serviceAccount.isActive,
       createdAt: serviceAccount.createdAt
     };
-    
+
     res.status(201).json(response);
   } catch (error) {
     logger.error('Failed to add service account:', error);
@@ -80,7 +97,7 @@ router.post('/api/service-accounts', isAuthenticated, async (req: Request, res: 
 router.get('/api/service-accounts', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const serviceAccounts = await ServiceAccount.find({ userId: (req.user as any)._id });
-    
+
     // Remove sensitive information before sending response
     const sanitizedAccounts = serviceAccounts.map(account => ({
       id: account._id,
@@ -91,7 +108,7 @@ router.get('/api/service-accounts', isAuthenticated, async (req: Request, res: R
       isActive: account.isActive,
       createdAt: account.createdAt
     }));
-    
+
     res.json(sanitizedAccounts);
   } catch (error) {
     logger.error('Failed to get service accounts:', error);
@@ -99,46 +116,7 @@ router.get('/api/service-accounts', isAuthenticated, async (req: Request, res: R
   }
 });
 
-/**
- * @route   GET /api/service-accounts/:id
- * @desc    Get a specific service account
- * @access  Private
- */
-router.get('/api/service-accounts/:id', isAuthenticated, async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid service account ID' });
-    }
-    
-    const serviceAccount = await ServiceAccount.findOne({
-      _id: id,
-      userId: (req.user as any)._id
-    });
-    
-    if (!serviceAccount) {
-      return res.status(404).json({ error: 'Service account not found' });
-    }
-    
-    // Remove sensitive information before sending response
-    const response = {
-      id: serviceAccount._id,
-      name: serviceAccount.name,
-      email: serviceAccount.email,
-      storageLimit: serviceAccount.storageLimit,
-      storageUsed: serviceAccount.storageUsed,
-      isActive: serviceAccount.isActive,
-      createdAt: serviceAccount.createdAt
-    };
-    
-    res.json(response);
-  } catch (error) {
-    logger.error('Failed to get service account:', error);
-    res.status(500).json({ error: 'Failed to get service account' });
-  }
-});
+
 
 /**
  * @route   PATCH /api/service-accounts/:id
@@ -149,28 +127,28 @@ router.patch('/api/service-accounts/:id', isAuthenticated, async (req: Request, 
   try {
     const { id } = req.params;
     const { name, storageLimit, isActive } = req.body;
-    
+
     // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid service account ID' });
     }
-    
+
     const serviceAccount = await ServiceAccount.findOne({
       _id: id,
       userId: (req.user as any)._id
     });
-    
+
     if (!serviceAccount) {
       return res.status(404).json({ error: 'Service account not found' });
     }
-    
+
     // Update fields
     if (name) serviceAccount.name = name;
     if (storageLimit) serviceAccount.storageLimit = storageLimit;
     if (isActive !== undefined) serviceAccount.isActive = isActive;
-    
+
     await serviceAccount.save();
-    
+
     // Remove sensitive information before sending response
     const response = {
       id: serviceAccount._id,
@@ -182,7 +160,7 @@ router.patch('/api/service-accounts/:id', isAuthenticated, async (req: Request, 
       createdAt: serviceAccount.createdAt,
       updatedAt: serviceAccount.updatedAt
     };
-    
+
     res.json(response);
   } catch (error) {
     logger.error('Failed to update service account:', error);
@@ -198,26 +176,26 @@ router.patch('/api/service-accounts/:id', isAuthenticated, async (req: Request, 
 router.delete('/api/service-accounts/:id', isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid service account ID' });
     }
-    
+
     const serviceAccount = await ServiceAccount.findOne({
       _id: id,
       userId: (req.user as any)._id
     });
-    
+
     if (!serviceAccount) {
       return res.status(404).json({ error: 'Service account not found' });
     }
-    
+
     // Check if account is being used by any uploads
     // TODO: Add check for active uploads using this service account
-    
+
     await serviceAccount.deleteOne();
-    
+
     res.json({ message: 'Service account deleted successfully' });
   } catch (error) {
     logger.error('Failed to delete service account:', error);
@@ -232,8 +210,9 @@ router.delete('/api/service-accounts/:id', isAuthenticated, async (req: Request,
  */
 router.get('/api/service-accounts/usage', isAuthenticated, async (req: Request, res: Response) => {
   try {
+
+    await googleDriveService.updateStorageStats((req.user as any)._id);
     const serviceAccounts = await ServiceAccount.find({ userId: (req.user as any)._id });
-    
     const usage = {
       total: 0,
       used: 0,
@@ -246,17 +225,57 @@ router.get('/api/service-accounts/usage', isAuthenticated, async (req: Request, 
         isActive: account.isActive
       }))
     };
-    
+
     // Calculate total and used storage
     usage.accounts.forEach(account => {
       usage.total += account.storageLimit;
       usage.used += account.storageUsed;
     });
-    
+
     res.json(usage);
   } catch (error) {
     logger.error('Failed to get storage usage:', error);
     res.status(500).json({ error: 'Failed to get storage usage' });
+  }
+});
+/**
+ * @route   GET /api/service-accounts/:id
+ * @desc    Get a specific service account
+ * @access  Private
+ */
+router.get('/api/service-accounts/:id', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid service account ID' });
+    }
+
+    const serviceAccount = await ServiceAccount.findOne({
+      _id: id,
+      userId: (req.user as any)._id
+    });
+
+    if (!serviceAccount) {
+      return res.status(404).json({ error: 'Service account not found' });
+    }
+
+    // Remove sensitive information before sending response
+    const response = {
+      id: serviceAccount._id,
+      name: serviceAccount.name,
+      email: serviceAccount.email,
+      storageLimit: serviceAccount.storageLimit,
+      storageUsed: serviceAccount.storageUsed,
+      isActive: serviceAccount.isActive,
+      createdAt: serviceAccount.createdAt
+    };
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Failed to get service account:', error);
+    res.status(500).json({ error: 'Failed to get service account' });
   }
 });
 

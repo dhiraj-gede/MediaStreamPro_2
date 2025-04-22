@@ -1,13 +1,8 @@
-import React from 'react';
-import { Link, useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-import { 
-  Home, 
-  FolderOpen, 
-  Video, 
-  ListChecks, 
-  Database 
-} from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Home, FolderOpen, Video, ListChecks, Database } from "lucide-react";
+import { getFolders } from "@/lib/api";
 
 interface NavItemProps {
   href: string;
@@ -17,15 +12,19 @@ interface NavItemProps {
   onClick?: () => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ 
-  href, 
-  icon, 
-  children, 
-  isActive, 
-  onClick 
+const NavItem: React.FC<NavItemProps> = ({
+  href,
+  icon,
+  children,
+  isActive,
+  onClick,
 }) => {
   return (
-    <li className={`px-4 py-2 hover:bg-gray-100 ${isActive ? 'text-primary font-medium' : ''}`}>
+    <li
+      className={`px-4 py-2 hover:bg-gray-100 ${
+        isActive ? "text-primary font-medium" : ""
+      }`}
+    >
       <Link href={href} onClick={onClick}>
         <a className="flex items-center space-x-2">
           {icon}
@@ -42,65 +41,69 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ closeMobile }) => {
   const [location] = useLocation();
-  
+  const [folders, setFolders] = useState([]);
   // Fetch folders from API
-  const { data: folders = [] } = useQuery({
-    queryKey: ['/api/folders'],
-    initialData: []
-  });
+  useEffect(() => {
+    const fetchFolders = async () => {
+      setFolders(await getFolders());
+    };
+    fetchFolders();
+  }, []);
 
   return (
     <nav className="py-4">
       <ul>
-        <NavItem 
-          href="/dashboard" 
-          icon={<Home className="h-5 w-5" />} 
-          isActive={location === '/'} 
+        <NavItem
+          href="/dashboard"
+          icon={<Home className="h-5 w-5" />}
+          isActive={location === "/"}
           onClick={closeMobile}
         >
           Dashboard
         </NavItem>
-        <NavItem 
-          href="/files" 
-          icon={<FolderOpen className="h-5 w-5" />} 
-          isActive={location === '/files'} 
+        <NavItem
+          href="/files"
+          icon={<FolderOpen className="h-5 w-5" />}
+          isActive={location === "/files"}
           onClick={closeMobile}
         >
           Files
         </NavItem>
-        <NavItem 
-          href="/videos" 
-          icon={<Video className="h-5 w-5" />} 
-          isActive={location === '/videos'} 
+        <NavItem
+          href="/videos"
+          icon={<Video className="h-5 w-5" />}
+          isActive={location === "/videos"}
           onClick={closeMobile}
         >
           Videos
         </NavItem>
-        <NavItem 
-          href="/jobs" 
-          icon={<ListChecks className="h-5 w-5" />} 
-          isActive={location === '/jobs'} 
+        <NavItem
+          href="/jobs"
+          icon={<ListChecks className="h-5 w-5" />}
+          isActive={location === "/jobs"}
           onClick={closeMobile}
         >
           Jobs
         </NavItem>
-        <NavItem 
-          href="/storage" 
-          icon={<Database className="h-5 w-5" />} 
-          isActive={location === '/storage'} 
+        <NavItem
+          href="/storage"
+          icon={<Database className="h-5 w-5" />}
+          isActive={location === "/storage"}
           onClick={closeMobile}
         >
           Storage
         </NavItem>
       </ul>
-      
+
       <div className="border-t my-4"></div>
       <div className="px-4">
-        <h2 className="font-medium mb-2 text-muted-foreground text-sm">FOLDERS</h2>
+        <h2 className="font-medium mb-2 text-muted-foreground text-sm">
+          FOLDERS
+        </h2>
         <ul>
           {folders.map((folder: any) => (
-            <li 
-              key={folder.id} 
+            <li
+              key={folder.id}
               className="py-1.5 pl-2 hover:bg-gray-100 rounded-md cursor-pointer flex items-center space-x-2"
               onClick={closeMobile}
             >

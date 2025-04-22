@@ -32,10 +32,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ isOpen, onClose }) =
   const queryClient = useQueryClient();
 
   // Fetch folders for dropdown
-  const { data: folders = [] } = useQuery({
-    queryKey: ['/api/folders'],
-    initialData: []
-  });
+   const {
+      data: folders = [],
+      isLoading: foldersLoading,
+      error,
+    } = useQuery({
+      queryKey: [`/api/folders/`],
+      enabled: isOpen,
+    });
 
   // Handle file drop
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -257,7 +261,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ isOpen, onClose }) =
                   <SelectValue placeholder="Select folder" />
                 </SelectTrigger>
                 <SelectContent>
-                  {folders.map((folder: any) => (
+                  {(folders as Array<{ id: string | number; name: string }>).map((folder) => (
                     <SelectItem key={folder.id} value={folder.id.toString()}>
                       {folder.name}
                     </SelectItem>

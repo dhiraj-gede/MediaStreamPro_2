@@ -18,7 +18,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 // File categories enum
-export const fileCategories = ['video', 'image', 'document', 'code', 'all'] as const;
+export const fileCategories = ['video', 'image', 'document', 'code', 'all', 'uncategorized'] as const;
 export type FileCategory = typeof fileCategories[number];
 
 // File statuses
@@ -129,7 +129,7 @@ export type Conversion = typeof conversions.$inferSelect;
 
 // Google Drive service accounts
 export const accounts = pgTable("accounts", {
-  id: serial("id").primaryKey(),
+  _id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   credentialsPath: text("credentials_path").notNull(),
@@ -141,7 +141,7 @@ export const accounts = pgTable("accounts", {
 });
 
 export const insertAccountSchema = createInsertSchema(accounts).omit({
-  id: true,
+  _id: true,
   storageUsed: true,
   createdAt: true,
   updatedAt: true,

@@ -26,7 +26,7 @@ export const AddServiceAccountDialog: React.FC<AddServiceAccountDialogProps> = (
   // Add service account mutation
   const addAccountMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/accounts', {
+      const response = await apiRequest('POST', '/api/service-accounts', {
         name,
         email,
         credentialsPath,
@@ -36,7 +36,7 @@ export const AddServiceAccountDialog: React.FC<AddServiceAccountDialogProps> = (
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts/usage'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/service-accounts/usage'] });
       toast({
         title: 'Service account added',
         description: 'The Google Drive service account has been added successfully.',

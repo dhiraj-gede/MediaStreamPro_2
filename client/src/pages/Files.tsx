@@ -57,6 +57,7 @@ export default function Files() {
                 <SelectItem value="image">Images</SelectItem>
                 <SelectItem value="document">Documents</SelectItem>
                 <SelectItem value="code">Code</SelectItem>
+                <SelectItem value="uncategorized">Uncategorized</SelectItem>
               </SelectContent>
             </Select>
           </div>

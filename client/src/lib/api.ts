@@ -94,6 +94,6 @@ export const createFolder = async (name: string) => {
 
 // Account management
 export const getAccountsUsage = async () => {
-  const response = await apiRequest('GET', '/api/accounts/usage');
+  const response = await apiRequest('GET', '/api/service-accounts/usage');
   return response.json();
 };

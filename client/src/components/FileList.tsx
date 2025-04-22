@@ -1,35 +1,35 @@
-import React, { useState } from 'react';
-import { Link } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import React, { useState } from "react";
+import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  MoreVertical, 
-  Eye, 
-  Download, 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  MoreVertical,
+  Eye,
+  Download,
   VideoIcon,
   ImageIcon,
   FileText,
   Archive,
-  CheckCircle
-} from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { 
+  CheckCircle,
+} from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { format } from 'date-fns';
-import { FileCategory } from '@shared/schema';
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { format } from "date-fns";
+import { FileCategory } from "@shared/schema";
 
 interface FileListProps {
   category?: FileCategory;
@@ -37,6 +37,9 @@ interface FileListProps {
 }
 
 interface FileData {
+  size: number;
+  mimeType: string;
+  name: string;
   id: number;
   uploadName: string;
   fileType: string;
@@ -50,24 +53,24 @@ interface FileData {
 }
 
 const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  
+  if (bytes === 0) return "0 Bytes";
+
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 const getCategoryIcon = (category: FileCategory) => {
   switch (category) {
-    case 'video':
+    case "video":
       return <VideoIcon className="h-5 w-5" />;
-    case 'image':
+    case "image":
       return <ImageIcon className="h-5 w-5" />;
-    case 'document':
+    case "document":
       return <FileText className="h-5 w-5" />;
-    case 'code':
+    case "code":
       return <Archive className="h-5 w-5" />;
     default:
       return <FileText className="h-5 w-5" />;
@@ -76,36 +79,48 @@ const getCategoryIcon = (category: FileCategory) => {
 
 const getCategoryColor = (category: FileCategory) => {
   switch (category) {
-    case 'video':
-      return 'bg-blue-100 text-blue-800';
-    case 'image':
-      return 'bg-green-100 text-green-800';
-    case 'document':
-      return 'bg-red-100 text-red-800';
-    case 'code':
-      return 'bg-purple-100 text-purple-800';
+    case "video":
+      return "bg-blue-100 text-blue-800";
+    case "image":
+      return "bg-green-100 text-green-800";
+    case "document":
+      return "bg-red-100 text-red-800";
+    case "code":
+      return "bg-purple-100 text-purple-800";
     default:
-      return 'bg-gray-100 text-gray-800';
+      return "bg-gray-100 text-gray-800";
   }
 };
 
 export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
   const [page, setPage] = useState(1);
   const limit = 10;
-  
+
   // Build query parameters
   const queryParams = new URLSearchParams();
-  if (category) queryParams.append('category', category);
-  if (folderId) queryParams.append('folderId', folderId);
-  queryParams.append('page', page.toString());
-  queryParams.append('limit', limit.toString());
-  
+  if (category) queryParams.append("category", category);
+  if (folderId) queryParams.append("folderId", folderId);
+  queryParams.append("page", page.toString());
+  queryParams.append("limit", limit.toString());
+
   // Fetch files
   const { data, isLoading, error } = useQuery<{
     files: FileData[];
     total: number;
   }>({
     queryKey: [`/api/uploads?${queryParams.toString()}`],
+  });
+  interface FolderData {
+    id: string;
+    name: string;
+  }
+
+  const {
+    data: folders = [],
+    isLoading: foldersLoading,
+    error: folderError,
+  } = useQuery<FolderData[]>({
+    queryKey: [`/api/folders/`],
   });
 
   const files = data?.files || [];
@@ -115,11 +130,15 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
   if (isLoading) {
     return <div className="py-8 text-center">Loading files...</div>;
   }
-  
+
   if (error) {
-    return <div className="py-8 text-center text-red-500">Error loading files: {(error as Error).message}</div>;
+    return (
+      <div className="py-8 text-center text-red-500">
+        Error loading files: {(error as Error).message}
+      </div>
+    );
   }
-  
+
   if (files.length === 0) {
     return (
       <div className="py-12 text-center">
@@ -153,25 +172,36 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
                       {getCategoryIcon(file.category)}
                     </div>
                     <div>
-                      <div className="font-medium">{file.uploadName}</div>
-                      <div className="text-xs text-muted-foreground">{file.fileType}</div>
+                      <div className="font-medium">
+                        {file.uploadName || file.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {file.fileType || file.mimeType}
+                      </div>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
                   <Badge className={getCategoryColor(file.category)}>
-                    {file.category.charAt(0).toUpperCase() + file.category.slice(1)}
+                    {folders && file.folderId
+                      ? folders.find((f) => f.id === file.folderId)?.name ||
+                        "home"
+                      : "home"}
                   </Badge>
                 </TableCell>
-                <TableCell>{file.folderName || 'Uncategorized'}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {format(new Date(file.createdAt), 'PP')}
+                <TableCell>
+                  {folders && file.folderId
+                    ? folders.find((f) => f.id == file.folderId)?.name || "home"
+                    : "home"}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {formatBytes(file.fileSize)}
+                  {format(new Date(file.createdAt), "PP")}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatBytes(file.fileSize || file.size)}
                 </TableCell>
                 <TableCell>
-                  {file.status === 'processing' ? (
+                  {file.status === "processing" ? (
                     <div>
                       <span className="flex items-center text-xs font-medium text-yellow-600">
                         <span className="mr-1 text-sm">pending</span>
@@ -179,7 +209,7 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
                       </span>
                       <Progress value={75} className="w-24 h-1.5 mt-1" />
                     </div>
-                  ) : file.status === 'ready' ? (
+                  ) : file.status === "ready" ? (
                     <span className="flex items-center text-xs font-medium text-green-600">
                       <CheckCircle className="h-3.5 w-3.5 mr-1" />
                       Ready
@@ -193,18 +223,20 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
                 </TableCell>
                 <TableCell>
                   <div className="flex space-x-1">
-                    {file.category === 'video' ? (
+                    {file.category === "video" ? (
                       <Link href={`/video/${file.id}`}>
                         <Button variant="ghost" size="icon" title="View">
                           <Eye className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </Link>
                     ) : (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title="Download"
-                        onClick={() => window.open(`/api/download/${file.id}`, '_blank')}
+                        onClick={() =>
+                          window.open(`/api/download/${file.id}`, "_blank")
+                        }
                       >
                         <Download className="h-4 w-4 text-muted-foreground" />
                       </Button>
@@ -218,9 +250,11 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>View Details</DropdownMenuItem>
                         <DropdownMenuItem>Download</DropdownMenuItem>
-                        {file.category === 'video' && (
+                        {file.category === "video" && (
                           <DropdownMenuItem>
-                            <Link href={`/jobs?file=${file.id}`}>View Conversion Jobs</Link>
+                            <Link href={`/jobs?file=${file.id}`}>
+                              View Conversion Jobs
+                            </Link>
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -232,24 +266,25 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
           </TableBody>
         </Table>
       </div>
-      
+
       {totalPages > 1 && (
         <div className="mt-4 flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalFiles)} of {totalFiles} files
+            Showing {(page - 1) * limit + 1} to{" "}
+            {Math.min(page * limit, totalFiles)} of {totalFiles} files
           </div>
           <div className="flex space-x-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               disabled={page === 1}
               onClick={() => setPage(page - 1)}
             >
               <span className="text-muted-foreground">chevron_left</span>
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               disabled={page === totalPages}
               onClick={() => setPage(page + 1)}
             >

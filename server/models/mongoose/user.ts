@@ -80,4 +80,4 @@ userSchema.index({ username: 1 });
 userSchema.index({ githubId: 1 });
 
 // Create the User model
-export const User = mongoose.model<IUser>('User', userSchema);
+export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);

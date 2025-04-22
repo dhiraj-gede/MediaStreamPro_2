@@ -1,5 +1,4 @@
-
-import { Schema, model } from 'mongoose';
+import mongoose, { Schema, model } from 'mongoose';
 import { User, File, Upload, Chunk, Conversion, Account, Folder } from '@shared/schema';
 
 const userSchema = new Schema<User>({
@@ -11,7 +10,7 @@ const fileSchema = new Schema<File>({
   id: Number,
   name: String,
   size: Number,
-  type: String,
+  mimeType: String,
 }, { timestamps: true });
 
 const uploadSchema = new Schema<Upload>({
@@ -50,7 +49,7 @@ const conversionSchema = new Schema<Conversion>({
 }, { timestamps: true });
 
 const accountSchema = new Schema<Account>({
-  id: Number,
+  _id: Number,
   name: String,
   email: String,
   storageLimit: Number,
@@ -62,11 +61,42 @@ const folderSchema = new Schema<Folder>({
   id: Number,
   name: String,
 }, { timestamps: true });
+export interface IServiceAccount extends Document {
+  id: string;
+  name: string;
+  email: string;
+  credentials: {
+    client_email: string;
+    private_key: string;
+  };
+  storageLimit: number;
+  storageUsed: number;
+  isActive: boolean;
+  userId: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export const UserModel = model<User>('User', userSchema);
-export const FileModel = model<File>('File', fileSchema);
-export const UploadModel = model<Upload>('Upload', uploadSchema);
-export const ChunkModel = model<Chunk>('Chunk', chunkSchema);
-export const ConversionModel = model<Conversion>('Conversion', conversionSchema);
-export const AccountModel = model<Account>('Account', accountSchema);
-export const FolderModel = model<Folder>('Folder', folderSchema);
+const ServiceAccountSchema: Schema = new Schema(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    credentials: { type: Object, required: true },
+    storageLimit: { type: Number, required: true },
+    storageUsed: { type: Number, default: 0 },
+    isActive: { type: Boolean, default: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true }, // ✅ enforce linkage
+  },
+  { timestamps: true }
+);
+
+export const UserModel = mongoose.models.User || model<User>('User', userSchema);
+export const FileModel = mongoose.models.File || model<File>('File', fileSchema);
+export const UploadModel = mongoose.models.Upload || model<Upload>('Upload', uploadSchema);
+export const ChunkModel = mongoose.models.Chunk || model<Chunk>('Chunk', chunkSchema);
+export const ConversionModel = mongoose.models.Conversion || model<Conversion>('Conversion', conversionSchema);
+export const ServiceAccount = mongoose.models.Account || model<IServiceAccount>('Account', ServiceAccountSchema);
+export const FolderModel = mongoose.models.Folder || model<Folder>('Folder', folderSchema);
+
+
+// Define ServiceAccountSchema or import it from the correct module

@@ -12,7 +12,6 @@ import { isAuthenticated } from './config/auth';
 import { registerUploadRoutes } from "./routes/upload";
 import { registerJobRoutes } from "./routes/jobs";
 import { registerStreamRoutes } from "./routes/stream";
-import { registerAccountRoutes } from "./routes/accounts";
 import { registerFileRoutes } from "./routes/files";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerServiceAccountRoutes } from "./routes/serviceAccounts";
@@ -74,7 +73,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerUploadRoutes(app);
   registerJobRoutes(app);
   registerStreamRoutes(app);
-  registerAccountRoutes(app);
   registerFileRoutes(app);
   
   // Create HTTP server

@@ -127,7 +127,7 @@ class HlsConverter {
           ])
           .output(outputPattern)
           .on('progress', async (progress) => {
-            const currentProgress = Math.round(progress.percent);
+            const currentProgress = Math.round(progress.percent ?? 0);
             
             // Only update if progress has changed significantly
             if (currentProgress >= lastProgress + 5) {
@@ -164,7 +164,6 @@ class HlsConverter {
                   resolution,
                   path: segmentPath,
                   externalFileId: segmentId,
-                  createdAt: new Date(),
                 });
               }
 
@@ -238,17 +237,44 @@ class HlsConverter {
   /**
    * Generate a thumbnail from a video
    */
-  async generateThumbnail(videoPath: string, outputPath: string, timestamp = '00:00:05'): Promise<void> {
+  async generateThumbnail(videoPath: string, outputPath: string, timestamp = '00:00:01'): Promise<void> {
     return new Promise((resolve, reject) => {
-      ffmpeg(videoPath)
+      console.log('Starting thumbnail generation', {
+        videoPath,
+        outputPath,
+        timestamp,
+      });
+  
+      const ffmpegCommand = ffmpeg(videoPath)
         .screenshots({
           timestamps: [timestamp],
           filename: path.basename(outputPath),
           folder: path.dirname(outputPath),
           size: '200x200',
+        });
+  
+      console.log('FFmpeg command initiated for thumbnail generation', {
+        videoPath,
+        outputPath,
+      });
+  
+      ffmpegCommand
+        .on('end', () => {
+          console.log('Thumbnail generation completed successfully', {
+            videoPath,
+            outputPath,
+          });
+          resolve();
         })
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err));
+        .on('error', (err) => {
+          logger.error('Thumbnail generation failed', {
+            videoPath,
+            outputPath,
+            error: err.message,
+            stack: err.stack,
+          });
+          reject(err);
+        });
     });
   }
 
@@ -258,7 +284,7 @@ class HlsConverter {
   async generateMasterPlaylist(uploadId: number): Promise<string> {
     try {
       const chunks = await storage.getChunksByUploadId(uploadId);
-      const resolutions = [...new Set(chunks.map(chunk => chunk.resolution))];
+      const resolutions = Array.from(new Set(chunks.map(chunk => chunk.resolution)));
       
       // Create master playlist content
       let masterPlaylist = '#EXTM3U\n';
