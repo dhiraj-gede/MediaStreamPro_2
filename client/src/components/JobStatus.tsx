@@ -14,10 +14,13 @@ interface JobStatusProps {
 
 export const JobStatus: React.FC<JobStatusProps> = ({ uploadId, jobId }) => {
   // Fetch job data based on uploadId or jobId
-  const { data: jobs = [], isLoading, error } = useQuery({
+  const { data: jobsData = [], isLoading, error } = useQuery({
     queryKey: [uploadId ? `/api/job/hls/getConversionJobs?uploadId=${uploadId}` : `/api/job/hls/get?jobId=${jobId}`],
     enabled: !!uploadId || !!jobId
   });
+
+  // Handle both single job and job array responses
+  const jobs = Array.isArray(jobsData) ? jobsData : [jobsData];
 
   if (isLoading) {
     return (
@@ -42,7 +45,7 @@ export const JobStatus: React.FC<JobStatusProps> = ({ uploadId, jobId }) => {
     );
   }
 
-  if (jobs.length === 0) {
+  if (!jobs || jobs.length === 0) {
     return (
       <Card>
         <CardHeader>
