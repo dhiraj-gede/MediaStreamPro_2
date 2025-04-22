@@ -25,14 +25,14 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 interface VideoProps {
-  id: string;
+  id?: string;
 }
 
-export default function Video() {
-  const [, params] = useLocation();
-  const videoId = parseInt(params.id);
-  
+export default function Video({ params = 0 }: VideoProps) {
+  const videoId = params.id;
+
   if (isNaN(videoId)) {
+    console.log("params", params);
     return <div className="py-8 text-center">Invalid video ID</div>;
   }
   const { toast } = useToast();
@@ -67,14 +67,14 @@ export default function Video() {
   const convertMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/job/hls/create", {
-        uploadId: parseInt(id!),
+        uploadId: (videoId),
         resolutions: selectedResolutions,
       });
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/job/hls/getConversionJobs?uploadId=${id}`],
+        queryKey: [`/api/job/hls/getConversionJobs?uploadId=${videoId}`],
       });
       toast({
         title: "Conversion job created",
@@ -174,7 +174,7 @@ export default function Video() {
       {/* Conversion Jobs */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-medium mb-4">Conversion Jobs</h2>
-        <JobStatus uploadId={parseInt(id!)} />
+        <JobStatus uploadId={videoId} />
       </div>
 
       {/* Convert Dialog */}
