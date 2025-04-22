@@ -107,14 +107,19 @@ export class MongoStorage implements IStorage {
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    logger.debug(`Starting getUser: id=${id}`);
-    const user = await UserModel.findOne({ id }).exec();
-    if (user) {
-      logger.debug(`Found user: id=${id}, username=${user.username}`);
-    } else {
-      logger.debug(`User not found: id=${id}`);
+    try {
+      logger.debug(`Starting getUser: id=${id}`);
+      const user = await UserModel.findOne({ id }).exec();
+      if (user) {
+        logger.debug(`Found user: id=${id}, username=${user.username}`);
+      } else {
+        logger.debug(`User not found: id=${id}`);
+      }
+      return user || undefined;
+    } catch (error) {
+      logger.error(`Error fetching user: id=${id}, error=${error}`);
+      throw new Error(`Failed to fetch user: ${error}`);
     }
-    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {

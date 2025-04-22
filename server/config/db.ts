@@ -13,10 +13,12 @@ export async function connectToDatabase(): Promise<void> {
     const options = {
       dbName: 'new_hls',
       autoIndex: true,
-      maxPoolSize: 10,
+      maxPoolSize: 50, // Increased maxPoolSize
       serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000, // Added connectTimeoutMS
       socketTimeoutMS: 45000,
-      family: 4
+      family: 4,
+      retryWrites: true // Added retryWrites
     };
 
     await mongoose.connect(MONGODB_URI, options);

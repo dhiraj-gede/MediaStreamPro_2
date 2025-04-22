@@ -6,6 +6,9 @@ const userSchema = new Schema<User>({
   username: String,
 }, { timestamps: true });
 
+userSchema.index({ id: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true });
+
 const fileSchema = new Schema<File>({
   id: Number,
   name: String,
