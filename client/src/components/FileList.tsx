@@ -20,12 +20,16 @@ import {
   FileText,
   Archive,
   CheckCircle,
+  FolderInput, // Assuming this is imported correctly
+  Film, // Assuming this is imported correctly
+  Trash2, // Assuming this is imported correctly
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
@@ -126,6 +130,27 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
   const files = data?.files || [];
   const totalFiles = data?.total || 0;
   const totalPages = Math.ceil(totalFiles / limit);
+
+  const onViewDetails = (file: FileData) => {
+    // Implement view details logic here
+    console.log("View details for file:", file);
+  };
+
+  const onDownload = (file: FileData) => {
+    // Implement download logic here
+    window.open(`/api/download/${file.id}`, "_blank");
+  };
+
+  const onMoveFile = (file: FileData) => {
+    // Implement move file logic here
+    console.log("Move file:", file);
+  };
+
+  const onDelete = (file: FileData) => {
+    // Implement delete logic here
+    console.log("Delete file:", file);
+  };
+
 
   if (isLoading) {
     return <div className="py-8 text-center">Loading files...</div>;
@@ -248,15 +273,34 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Download</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onViewDetails(file)}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onDownload(file)}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onMoveFile(file)}>
+                          <FolderInput className="w-4 h-4 mr-2" />
+                          Move to Folder
+                        </DropdownMenuItem>
                         {file.category === "video" && (
                           <DropdownMenuItem>
-                            <Link href={`/jobs?file=${file.id}`}>
-                              View Conversion Jobs
+                            <Link href={`/video/${file.id}`} className="flex items-center">
+                              <Film className="w-4 h-4 mr-2" />
+                              Convert Video
                             </Link>
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={() => onDelete(file)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete File
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

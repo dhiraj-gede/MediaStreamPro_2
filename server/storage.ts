@@ -48,6 +48,8 @@ export interface IStorage {
   updateFolder(id: number, update: Partial<Folder>): Promise<Folder>;
   deleteFolder(id: number): Promise<boolean>;
   count(options?: { folderId?: string }): Promise<number>;
+  deleteFile(id: number): Promise<boolean>;
+  moveFile(id: number, newFolderId: number): Promise<boolean>;
 }
 
 export class MongoStorage implements IStorage {
@@ -546,6 +548,32 @@ export class MongoStorage implements IStorage {
     const count = await UploadModel.countDocuments(query).exec();
     logger.debug(`Counted ${count} uploads for query=${JSON.stringify(query)}`);
     return count;
+  }
+
+  async deleteFile(id: number): Promise<boolean> {
+    logger.debug(`Starting deleteFile: id=${id}`);
+    const file = await FileModel.findOne({ id }).exec();
+    if (!file) return false;
+
+    // Delete file from storage
+    await googleDriveService.deleteFile(file.externalFileId);
+
+    // Delete from database
+    await FileModel.deleteOne({ id }).exec();
+    return true;
+  }
+
+  async moveFile(id: number, newFolderId: number): Promise<boolean> {
+    logger.debug(`Moving file ${id} to folder ${newFolderId}`);
+    const file = await FileModel.findOne({ id }).exec();
+    if (!file) return false;
+
+    const folder = await FolderModel.findOne({ id: newFolderId }).exec();
+    if (!folder) return false;
+
+    file.folderId = newFolderId.toString();
+    await file.save();
+    return true;
   }
 }
 
