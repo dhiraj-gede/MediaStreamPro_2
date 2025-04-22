@@ -24,7 +24,7 @@ export function AuthGuard({ children }) {
   return children;
 }
 
-// Login странице
+// Login page
 const Login = () => {
   const { isAuthenticated } = useAuth();
 
@@ -79,19 +79,6 @@ function App() {
             <Route path="/login" component={Login} />
             <Route path="/:rest*" component={ProtectedRoutes} />
           </Switch>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-}
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
