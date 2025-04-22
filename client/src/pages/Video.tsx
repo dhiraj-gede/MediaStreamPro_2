@@ -28,8 +28,13 @@ interface VideoProps {
   id: string;
 }
 
-export default function Video({ id }: { id: string }) {
-  const videoId = parseInt(id);
+export default function Video() {
+  const [, params] = useLocation();
+  const videoId = parseInt(params.id);
+  
+  if (isNaN(videoId)) {
+    return <div className="py-8 text-center">Invalid video ID</div>;
+  }
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
