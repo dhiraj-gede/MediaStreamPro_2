@@ -1,3 +1,4 @@
+
 import { Switch, Route, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -54,15 +55,16 @@ const ProtectedRoutes = () => {
     <AuthGuard>
       <Layout>
         <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/dashboard">
-            <Redirect to="/" />
-          </Route>
+          <Route path="/dashboard" component={Dashboard} />
           <Route path="/files" component={Files} />
           <Route path="/videos" component={Videos} />
           <Route path="/video/:id" component={Video} />
           <Route path="/jobs" component={Jobs} />
           <Route path="/storage" component={Storage} />
+          <Route path="/">
+            <Redirect to="/dashboard" />
+          </Route>
+          <Route component={NotFound} />
         </Switch>
       </Layout>
     </AuthGuard>
@@ -77,7 +79,9 @@ function App() {
           <Toaster />
           <Switch>
             <Route path="/login" component={Login} />
-            <Route path="/" component={ProtectedRoutes} />
+            <Route>
+              <ProtectedRoutes />
+            </Route>
           </Switch>
         </TooltipProvider>
       </AuthProvider>
