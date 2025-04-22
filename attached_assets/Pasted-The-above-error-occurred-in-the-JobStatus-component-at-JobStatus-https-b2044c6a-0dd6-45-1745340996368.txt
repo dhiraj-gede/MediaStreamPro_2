@@ -1,0 +1,26 @@
+The above error occurred in the <JobStatus> component:
+
+    at JobStatus (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/src/components/JobStatus.tsx:25:29)
+    at div
+    at div
+    at Video (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/src/pages/Video.tsx:36:33)
+    at Route (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7354b9c:323:16)
+    at Switch (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7354b9c:379:17)
+    at main
+    at div
+    at div
+    at Layout (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/src/components/Layout.tsx:22:26)
+    at AuthGuard (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/src/App.tsx?v=Zqh95YOBHt2rmL-JCb5z6:32:29)
+    at ProtectedRoutes
+    at Route (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7354b9c:323:16)
+    at Switch (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e7354b9c:379:17)
+    at Provider (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=e7354b9c:38:15)
+    at TooltipProvider (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e7354b9c:61:5)
+    at AuthProvider (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/src/hooks/useAuth.tsx:32:32)
+    at QueryClientProvider (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=e7354b9c:2805:3)
+    at App
+    at V (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/next-themes.js?v=e7354b9c:44:25)
+    at J (https://b2044c6a-0dd6-45bd-87da-42aa13a44340-00-2rg4xn2x7i3ie.pike.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/next-themes.js?v=e7354b9c:42:18)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
