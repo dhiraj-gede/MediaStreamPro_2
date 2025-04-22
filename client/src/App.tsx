@@ -69,22 +69,19 @@ const ProtectedRoutes = () => {
   );
 };
 
-// Main router
-function Router() {
+function App() {
   return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/404" component={NotFound} />
-      <Route path="/" component={ProtectedRoutes} />
-      <Route path="/files" component={ProtectedRoutes} />
-      <Route path="/videos" component={ProtectedRoutes} />
-      <Route path="/video/:id" component={ProtectedRoutes} />
-      <Route path="/jobs" component={ProtectedRoutes} />
-      <Route path="/storage" component={ProtectedRoutes} />
-      <Route path="/:rest*">
-        <Redirect to="/" />
-      </Route>
-    </Switch>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Switch>
+            <Route path="/login" component={Login} />
+            <Route path="/:rest*" component={ProtectedRoutes} />
+          </Switch>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

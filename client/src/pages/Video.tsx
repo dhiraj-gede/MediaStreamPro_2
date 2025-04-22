@@ -28,8 +28,8 @@ interface VideoProps {
   id: string;
 }
 
-export default function Video() {
-  const id = 16;
+export default function Video({ id }: { id: string }) {
+  const videoId = parseInt(id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
@@ -54,7 +54,7 @@ export default function Video() {
     isLoading,
     error,
   } = useQuery<VideoType>({
-    queryKey: [`/api/uploads/${id}`],
+    queryKey: [`/api/uploads/${videoId}`],
   });
 
   console.log("video", video);
