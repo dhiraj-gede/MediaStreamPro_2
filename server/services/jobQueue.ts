@@ -9,6 +9,8 @@ import config from 'server/config';
 // Configure Redis connection
 const redisConnection = new Redis(config.redis.url || 'redis://127.0.0.1:6379', {
   maxRetriesPerRequest: null,
+  //Added to address Redis eviction policy warning.  Noeviction policy is set here.
+  commandFlags: ['CONFIG', 'SET', 'maxmemory-policy', 'noeviction'],
 });
 
 // Job types

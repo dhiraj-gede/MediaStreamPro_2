@@ -74,10 +74,7 @@ const userSchema = new Schema<IUser>(
   }
 );
 
-// Add indices for faster queries
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
-userSchema.index({ githubId: 1 });
+// Indices are already defined in the schema fields
 
 // Create the User model
 export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
