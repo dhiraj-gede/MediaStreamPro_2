@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { JobStatus } from "@/components/JobStatus";
@@ -125,7 +125,7 @@ export default function Video({ id }: { id: string }) {
       {/* Video Player and Info */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <VideoPlayer  />
+          <VideoPlayer src={`/api/stream/${videoId}`} />
         </div>
 
         <div className="space-y-4">
