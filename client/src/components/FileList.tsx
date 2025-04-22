@@ -286,10 +286,12 @@ export const FileList: React.FC<FileListProps> = ({ category, folderId }) => {
                           Move to Folder
                         </DropdownMenuItem>
                         {file.category === "video" && (
-                          <DropdownMenuItem>
-                            <Link href={`/video/${file.id}`} className="flex items-center">
-                              <Film className="w-4 h-4 mr-2" />
-                              Convert Video
+                          <DropdownMenuItem asChild>
+                            <Link href={`/video/${file.id}`}>
+                              <div className="flex items-center">
+                                <Film className="w-4 h-4 mr-2" />
+                                Convert Video
+                              </div>
                             </Link>
                           </DropdownMenuItem>
                         )}

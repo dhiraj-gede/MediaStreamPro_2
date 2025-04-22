@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
@@ -16,12 +17,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   autoplay = false,
   controls = true,
 }) => {
-  const videoRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<Player | null>(null);
 
   useEffect(() => {
     if (!videoRef.current) return;
 
+    const videoElement = videoRef.current;
     const options = {
       autoplay,
       controls,
@@ -32,9 +34,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         type: src.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'
       }],
       poster,
+      html5: {
+        vhs: {
+          overrideNative: true
+        },
+        nativeAudioTracks: false,
+        nativeVideoTracks: false
+      }
     };
 
-    playerRef.current = videojs(videoRef.current, options);
+    // Initialize video.js player
+    playerRef.current = videojs(videoElement, options);
 
     return () => {
       if (playerRef.current) {
@@ -47,8 +57,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div data-vjs-player>
       <video 
-        ref={videoRef as any}
-        className="video-js vjs-big-play-centered"
+        ref={videoRef}
+        className="video-js vjs-big-play-centered vjs-fluid"
       />
     </div>
   );

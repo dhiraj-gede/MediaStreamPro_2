@@ -63,9 +63,18 @@ export class MongoStorage implements IStorage {
 
   constructor() {
     logger.debug('Starting MongoStorage constructor');
-    this.initializeCounters();
-    this.initializeDefaultFolders();
+    this.initialize();
     logger.debug('Completed MongoStorage constructor');
+  }
+
+  private async initialize() {
+    try {
+      await this.initializeCounters();
+      await this.initializeDefaultFolders();
+    } catch (error) {
+      logger.error('Failed to initialize storage:', error);
+      throw new Error('Storage initialization failed');
+    }
   }
 
   private async initializeCounters() {
