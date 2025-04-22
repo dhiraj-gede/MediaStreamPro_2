@@ -77,7 +77,7 @@ function App() {
           <Toaster />
           <Switch>
             <Route path="/login" component={Login} />
-            <Route path="/:rest*" component={ProtectedRoutes} />
+            <Route path="/" component={ProtectedRoutes} />
           </Switch>
         </TooltipProvider>
       </AuthProvider>
