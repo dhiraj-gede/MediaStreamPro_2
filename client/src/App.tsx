@@ -1,24 +1,37 @@
-
 import { Switch, Route, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "./hooks/useAuth";
-import { AuthGuard } from "./components/AuthGuard";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import NotFound from "@/pages/not-found";
 import { Layout } from "@/components/Layout";
-
-// Pages
 import Dashboard from "@/pages/Dashboard";
 import Files from "@/pages/Files";
 import Videos from "@/pages/Videos";
 import Video from "@/pages/Video";
 import Jobs from "@/pages/Jobs";
 import Storage from "@/pages/Storage";
-import NotFound from "@/pages/not-found";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { queryClient } from "./lib/queryClient";
 
-// Login page component
+// AuthGuard component
+export function AuthGuard({ children }) {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Redirect to="/login" />;
+  }
+
+  return children;
+}
+
+// Login странице
 const Login = () => {
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) {
+    return <Redirect to="/dashboard" />;
+  }
+
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center p-4">
       <div className="max-w-md space-y-6 text-center">
@@ -26,52 +39,54 @@ const Login = () => {
           Content Delivery System
         </h1>
         <p className="text-lg text-muted-foreground">
-          Securely manage, process, and deliver your media content with our powerful platform.
+          Securely manage, process, and deliver your media content with our
+          powerful platform.
         </p>
-        <div className="pt-4">
-          <AuthGuard>
-            <p className="text-green-500">You are authenticated!</p>
-          </AuthGuard>
-        </div>
+        <div className="pt-4">{/* Add login form or button here */}</div>
       </div>
     </div>
   );
 };
 
+// Protected routes component
 const ProtectedRoutes = () => {
   return (
     <AuthGuard>
       <Layout>
         <Switch>
-          <Route path="/">
-            <Dashboard />
-          </Route>
+          <Route path="/" component={Dashboard} />
           <Route path="/dashboard">
-            <Dashboard />
+            <Redirect to="/" />
           </Route>
-          <Route path="/files">
-            <Files />
-          </Route>
-          <Route path="/videos">
-            <Videos />
-          </Route>
-          <Route path="/video/:id">
-            {(params) => <Video id={params.id} />}
-          </Route>
-          <Route path="/jobs">
-            <Jobs />
-          </Route>
-          <Route path="/storage">
-            <Storage />
-          </Route>
-          <Route>
-            <NotFound />
-          </Route>
+          <Route path="/files" component={Files} />
+          <Route path="/videos" component={Videos} />
+          <Route path="/video/:id" component={Video} />
+          <Route path="/jobs" component={Jobs} />
+          <Route path="/storage" component={Storage} />
         </Switch>
       </Layout>
     </AuthGuard>
   );
 };
+
+// Main router
+function Router() {
+  return (
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/404" component={NotFound} />
+      <Route path="/" component={ProtectedRoutes} />
+      <Route path="/files" component={ProtectedRoutes} />
+      <Route path="/videos" component={ProtectedRoutes} />
+      <Route path="/video/:id" component={ProtectedRoutes} />
+      <Route path="/jobs" component={ProtectedRoutes} />
+      <Route path="/storage" component={ProtectedRoutes} />
+      <Route path="/:rest*">
+        <Redirect to="/" />
+      </Route>
+    </Switch>
+  );
+}
 
 function App() {
   return (
@@ -79,10 +94,7 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Switch>
-            <Route path="/login" component={Login} />
-            <Route path="/:rest*" component={ProtectedRoutes} />
-          </Switch>
+          <Router />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

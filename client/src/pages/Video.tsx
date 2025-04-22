@@ -28,7 +28,8 @@ interface VideoProps {
   id: string;
 }
 
-export default function Video({ id }: VideoProps) {
+export default function Video() {
+  const id = 16;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
@@ -90,7 +91,7 @@ export default function Video({ id }: VideoProps) {
   const toggleResolution = (resolution: string) => {
     if (selectedResolutions.includes(resolution)) {
       setSelectedResolutions(
-        selectedResolutions.filter((r) => r !== resolution)
+        selectedResolutions.filter((r) => r !== resolution),
       );
     } else {
       setSelectedResolutions([...selectedResolutions, resolution]);
@@ -124,7 +125,7 @@ export default function Video({ id }: VideoProps) {
       {/* Video Player and Info */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <VideoPlayer uploadId={id!} title={video.uploadName} />
+          <VideoPlayer  />
         </div>
 
         <div className="space-y-4">
